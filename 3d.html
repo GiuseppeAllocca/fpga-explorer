@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="it" data-view="3d">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="Esploratore interattivo di un FPGA Artix-7: dalla board fino alla LUT, in 2D e in 3D.">
+<title>Esploratore FPGA</title>
+</head>
+<body>
+<header class="topbar">
+  <h1 id="brand" class="brand"></h1>
+  <nav id="breadcrumb" class="breadcrumb" aria-label="Livello"></nav>
+  <div class="actions">
+    <button id="flow-button" aria-label="Flusso di progetto" title="Flusso di progetto"><span class="action-icon icon" aria-hidden="true">⇢</span><span class="action-label">Flusso di progetto</span></button>
+    <div class="dimension"><button id="view-2d" type="button" title="2D" aria-label="2D">2D</button><span aria-current="page">3D</span></div>
+    <button id="legend-button" aria-label="Legenda" title="Legenda" aria-expanded="false" aria-controls="legend"><span class="action-icon icon" aria-hidden="true">◇</span><span class="action-label">Legenda</span></button>
+    <button id="theme-button" class="icon"></button>
+  </div>
+</header>
+<div class="notice"><span id="schema-notice"></span></div>
+<main class="workspace" id="workspace">
+  <section class="stage" id="stage" aria-label="3D">
+    <div class="stage-top"><button id="back-button" class="back" hidden></button><div id="variant" class="variant" hidden></div></div>
+    <aside id="board-notice" class="board-note"></aside>
+    <div id="three-view" class="three-view"></div><nav id="three-nodes" class="three-nodes" aria-label="Livello"></nav>
+    <span class="scale-note">schema, non in scala</span>
+    <div class="zoom"><button id="zoom-out" aria-label="−">−</button><button id="zoom-in" aria-label="+">+</button><button id="fit-button">Adatta</button></div>
+  </section>
+  <aside id="panel" class="panel" aria-label="Spiegazione">
+    <button id="panel-toggle" class="panel-toggle" aria-label="Spiegazione" aria-expanded="true" aria-controls="panel-scroll">›</button>
+    <div id="sheet-handle" class="handle" role="slider" tabindex="0" aria-label="Spiegazione" aria-orientation="vertical" aria-valuemin="20" aria-valuemax="85" aria-valuenow="45" aria-valuetext="45%"><span></span></div>
+    <div id="panel-scroll" class="panel-scroll"></div>
+  </aside>
+</main>
+<aside id="legend" class="legend" role="dialog" aria-modal="false" aria-label="Legenda" hidden></aside>
+<div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+<div id="announcement" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

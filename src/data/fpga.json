@@ -1,0 +1,1866 @@
+{
+  "meta": {
+    "titolo": "Esploratore FPGA — Artix-7 sulla Nexys A7",
+    "versione_dati": "1.0",
+    "data": "2026-11-05",
+    "autore_dati": "Compilato con assistenza AI a partire dalla documentazione pubblica AMD e Digilent; da verificare punto per punto",
+    "dispositivo": "XC7A100T-1CSG324C su Digilent Nexys A7-100T",
+    "avviso_board": "La Nexys A7 è usata come board di riferimento: altre board con lo stesso chip o con chip diversi possono differire.",
+    "avviso_schema": "I disegni sono schemi, non piante in scala del chip reale: le proporzioni e l'ordine delle colonne servono a capire, non a misurare."
+  },
+  "fonti": {
+    "ug474": {
+      "etichetta": "AMD UG474, 7 Series FPGAs CLB User Guide, v1.8 (2016)",
+      "tipo": "web",
+      "url": "https://docs.amd.com/r/en-US/ug474_7Series_CLB"
+    },
+    "ug472": {
+      "etichetta": "AMD UG472, 7 Series FPGAs Clocking Resources User Guide, v1.14 (2018)",
+      "tipo": "web",
+      "url": "https://docs.amd.com/r/en-US/ug472_7Series_Clocking"
+    },
+    "ds180": {
+      "etichetta": "AMD DS180, 7 Series FPGAs Data Sheet: Overview, v2.6 (2018)",
+      "tipo": "web",
+      "url": "https://docs.amd.com/r/en-US/ds180_7Series_Overview"
+    },
+    "ug479": {
+      "etichetta": "AMD UG479, 7 Series DSP48E1 Slice User Guide, v1.10 (2018)",
+      "tipo": "web",
+      "url": "https://docs.amd.com/r/en-US/ug479_7Series_DSP48E1"
+    },
+    "ug473": {
+      "etichetta": "AMD UG473, 7 Series FPGAs Memory Resources, v1.14 (2019)",
+      "tipo": "web",
+      "url": "https://docs.amd.com/r/en-US/ug473_7Series_Memory_Resources"
+    },
+    "ug470": {
+      "etichetta": "AMD UG470, 7 Series FPGAs Configuration User Guide, v1.10 (2015)",
+      "tipo": "web",
+      "url": "https://docs.amd.com/r/en-US/ug470_7Series_Config"
+    },
+    "nexys_rm": {
+      "etichetta": "Digilent, Nexys A7 Reference Manual",
+      "tipo": "web",
+      "url": "https://digilent.com/reference/programmable-logic/nexys-a7/reference-manual"
+    },
+    "nexys_xdc": {
+      "etichetta": "Digilent, Nexys-A7-100T-Master.xdc (repository digilent-xdc)",
+      "tipo": "web",
+      "url": "https://github.com/Digilent/digilent-xdc/blob/master/Nexys-A7-100T-Master.xdc"
+    },
+    "claude": {
+      "etichetta": "Elaborazione non tratta direttamente dalle fonti citate",
+      "tipo": "claude"
+    },
+    "da_verificare": {
+      "etichetta": "Da verificare sulla documentazione AMD (fonte originale non pubblica)",
+      "tipo": "da_verificare"
+    }
+  },
+  "livelli": [
+    {
+      "id": "L0",
+      "nome": "Board",
+      "radice": "board"
+    },
+    {
+      "id": "L1",
+      "nome": "Chip",
+      "radice": "chip"
+    },
+    {
+      "id": "L2",
+      "nome": "Regione di clock",
+      "radice": "regione"
+    },
+    {
+      "id": "L3",
+      "nome": "CLB",
+      "radice": "clb"
+    },
+    {
+      "id": "L4",
+      "nome": "Slice",
+      "radice": "slice"
+    },
+    {
+      "id": "L5",
+      "nome": "LUT",
+      "radice": "lut"
+    }
+  ],
+  "nodi": {
+    "board": {
+      "livello": "L0",
+      "padre": null,
+      "titolo": "La board di sviluppo",
+      "termine_en": "development board",
+      "in_breve": "La board porta l'FPGA e lo collega al mondo esterno: alimentazione, clock, interruttori, LED, display, memorie e connettori.",
+      "spiegazione": [
+        "La board non è l'FPGA: l'FPGA è il chip quadrato al centro, tutto il resto è il circuito che gli sta intorno. Le board didattiche come questa sono prodotte da Digilent, che monta gli FPGA di AMD sulle sue board di sviluppo.",
+        "Ogni periferica della board è collegata con una pista del circuito stampato a un pin del chip. Per usarla, nel progetto bisogna dire a Vivado a quale pin va ogni porta: è il compito dei vincoli fisici, nel file XDC."
+      ],
+      "numeri": [
+        {
+          "voce": "FPGA",
+          "valore": "XC7A100T-1CSG324C (esiste anche la versione con XC7A50T)",
+          "fonte": "nexys_rm",
+          "pagina": 6
+        },
+        {
+          "voce": "Interruttori",
+          "valore": "16",
+          "fonte": "nexys_rm",
+          "pagina": 4
+        },
+        {
+          "voce": "LED",
+          "valore": "16, più 2 LED RGB",
+          "fonte": "nexys_rm",
+          "pagina": 4
+        },
+        {
+          "voce": "Display a 7 segmenti",
+          "valore": "2 da 4 cifre, usati come un unico display da 8 cifre",
+          "fonte": "nexys_rm",
+          "pagina": 20
+        },
+        {
+          "voce": "Pulsanti",
+          "valore": "5, più il pulsante CPU RESET",
+          "fonte": "nexys_xdc"
+        },
+        {
+          "voce": "Oscillatore",
+          "valore": "100 MHz, sul pin E3",
+          "fonte": "nexys_rm",
+          "pagina": 11
+        },
+        {
+          "voce": "Memorie",
+          "valore": "128 MiB di DDR2 e 16 MiB di flash Quad-SPI",
+          "fonte": "nexys_rm",
+          "pagina": 9
+        }
+      ],
+      "fonti": [
+        {
+          "id": "nexys_rm",
+          "pagina": 4
+        }
+      ],
+      "figli": [
+        "board.fpga",
+        "board.clock",
+        "board.switch",
+        "board.led",
+        "board.rgb",
+        "board.display",
+        "board.button",
+        "board.prog",
+        "board.jp1",
+        "board.flash",
+        "board.ddr2",
+        "board.usb_sd",
+        "board.pmod",
+        "board.altri"
+      ],
+      "entra_in": "chip"
+    },
+    "board.fpga": {
+      "livello": "L0",
+      "padre": "board",
+      "titolo": "Il chip FPGA",
+      "termine_en": "FPGA device",
+      "in_breve": "Il quadrato al centro della board: un Artix-7 XC7A100T in package CSG324. Toccandolo si entra nel chip.",
+      "spiegazione": [
+        "Un FPGA (Field Programmable Gate Array) è un dispositivo a semiconduttore progettato per essere configurato dopo la fabbricazione: si collega al computer, gli si scarica il progetto e, se il progetto cambia, se ne scarica uno nuovo.",
+        "Il chip è chiuso in un contenitore (package) che sotto ha i contatti saldati sulla board. Il package CSG324 misura 15 × 15 mm, ha i contatti a 0,8 mm l'uno dall'altro e porta all'esterno 210 pin di I/O utente."
+      ],
+      "numeri": [
+        {
+          "voce": "Celle logiche",
+          "valore": "101 440",
+          "fonte": "ds180",
+          "pagina": 3
+        },
+        {
+          "voce": "Pin di I/O utente nel package CSG324",
+          "valore": "210",
+          "fonte": "ds180",
+          "pagina": 3
+        },
+        {
+          "voce": "Transceiver GTP nel package CSG324",
+          "valore": "0 (il chip ne ha 8, ma questo package non li porta all'esterno)",
+          "fonte": "ds180",
+          "pagina": 3
+        }
+      ],
+      "fonti": [
+        {
+          "id": "ds180",
+          "pagina": 3
+        },
+        {
+          "id": "nexys_rm",
+          "pagina": 6
+        }
+      ],
+      "entra_in": "chip"
+    },
+    "board.clock": {
+      "livello": "L0",
+      "padre": "board",
+      "titolo": "L'oscillatore da 100 MHz",
+      "termine_en": "crystal oscillator",
+      "in_breve": "La sorgente del clock non sta sull'FPGA: è un oscillatore sulla board, collegato al pin E3 del chip.",
+      "spiegazione": [
+        "Il clock entra nel chip da un pin e da lì va distribuito a tutti gli elementi sequenziali attraverso le reti di clock dedicate.",
+        "Nel file dei vincoli della board il clock è dichiarato con periodo 10 ns e forma d'onda da 0 a 5 ns: 100 MHz con duty cycle del 50%."
+      ],
+      "numeri": [
+        {
+          "voce": "Frequenza",
+          "valore": "100 MHz",
+          "fonte": "nexys_rm",
+          "pagina": 11
+        },
+        {
+          "voce": "Pin",
+          "valore": "E3 (ingresso di clock del banco 35)",
+          "fonte": "nexys_rm",
+          "pagina": 11
+        },
+        {
+          "voce": "Periodo",
+          "valore": "10 ns",
+          "fonte": "nexys_xdc"
+        }
+      ],
+      "fonti": [
+        {
+          "id": "nexys_rm",
+          "pagina": 11
+        },
+        {
+          "id": "nexys_xdc"
+        }
+      ],
+      "collegati": [
+        "cmt",
+        "regione"
+      ],
+      "interazione": "sim_clock"
+    },
+    "board.switch": {
+      "livello": "L0",
+      "padre": "board",
+      "titolo": "Gli interruttori",
+      "termine_en": "slide switches",
+      "in_breve": "16 interruttori a levetta: ognuno dà al suo pin un livello costante, alto o basso.",
+      "spiegazione": [
+        "Gli interruttori e i pulsanti sono collegati all'FPGA attraverso resistenze in serie. Un interruttore genera un ingresso costante, alto o basso a seconda della posizione.",
+        "Sotto ogni interruttore è stampato fra parentesi il pin a cui è collegato. Gli interruttori SW8 e SW9 usano lo standard di I/O a 1,8 V (LVCMOS18), tutti gli altri quello a 3,3 V (LVCMOS33)."
+      ],
+      "pin": {
+        "SW0": "J15",
+        "SW1": "L16",
+        "SW2": "M13",
+        "SW3": "R15",
+        "SW4": "R17",
+        "SW5": "T18",
+        "SW6": "U18",
+        "SW7": "R13",
+        "SW8": "T8",
+        "SW9": "U8",
+        "SW10": "R16",
+        "SW11": "T13",
+        "SW12": "H6",
+        "SW13": "U12",
+        "SW14": "U11",
+        "SW15": "V10"
+      },
+      "fonti": [
+        {
+          "id": "nexys_rm",
+          "pagina": 19
+        },
+        {
+          "id": "nexys_xdc"
+        }
+      ],
+      "collegati": [
+        "iob",
+        "chip.pin"
+      ]
+    },
+    "board.led": {
+      "livello": "L0",
+      "padre": "board",
+      "titolo": "I LED",
+      "termine_en": "LEDs",
+      "in_breve": "16 LED, ognuno pilotato da un pin dell'FPGA: si accende quando il pin è alto.",
+      "spiegazione": [
+        "I sedici LED sono collegati all'FPGA dal lato dell'anodo, attraverso resistenze da 330 ohm: si accendono quando il pin dell'FPGA porta un livello alto."
+      ],
+      "pin": {
+        "LED0": "H17",
+        "LED1": "K15",
+        "LED2": "J13",
+        "LED3": "N14",
+        "LED4": "R18",
+        "LED5": "V17",
+        "LED6": "U17",
+        "LED7": "U16",
+        "LED8": "V16",
+        "LED9": "T15",
+        "LED10": "U14",
+        "LED11": "T16",
+        "LED12": "V15",
+        "LED13": "V14",
+        "LED14": "V12",
+        "LED15": "V11"
+      },
+      "fonti": [
+        {
+          "id": "nexys_rm",
+          "pagina": 20
+        },
+        {
+          "id": "nexys_xdc"
+        }
+      ],
+      "collegati": [
+        "iob",
+        "chip.pin"
+      ]
+    },
+    "board.rgb": {
+      "livello": "L0",
+      "padre": "board",
+      "titolo": "I LED RGB",
+      "termine_en": "RGB LEDs",
+      "in_breve": "Due LED a tre colori, LD16 e LD17: ogni colore ha il suo pin.",
+      "spiegazione": [
+        "Ognuno dei due LED RGB ha tre ingressi, rosso, verde e blu, collegati a tre pin distinti dell'FPGA."
+      ],
+      "pin": {
+        "LED16_R": "N15",
+        "LED16_G": "M16",
+        "LED16_B": "R12",
+        "LED17_R": "N16",
+        "LED17_G": "R11",
+        "LED17_B": "G14"
+      },
+      "fonti": [
+        {
+          "id": "nexys_rm",
+          "pagina": 4
+        },
+        {
+          "id": "nexys_xdc"
+        }
+      ]
+    },
+    "board.display": {
+      "livello": "L0",
+      "padre": "board",
+      "titolo": "Il display a 7 segmenti",
+      "termine_en": "seven-segment display",
+      "in_breve": "Otto cifre che condividono gli stessi segnali dei segmenti: si accende una cifra alla volta, abbastanza in fretta da vederle tutte accese.",
+      "spiegazione": [
+        "La board ha due display a quattro cifre ad anodo comune, che si comportano come un unico display da otto cifre. In ogni cifra gli anodi dei sette LED sono uniti in un nodo comune, mentre i catodi dei segmenti (CA…CG e il punto DP) sono comuni a tutte le cifre: il display è multiplexato.",
+        "Sia gli anodi (AN0…AN7) sia i catodi sono attivi bassi. Per scrivere otto cifre diverse si abilita una cifra alla volta, con il suo anodo, e intanto si mettono sui catodi i segmenti di quella cifra."
+      ],
+      "pin": {
+        "CA": "T10",
+        "CB": "R10",
+        "CC": "K16",
+        "CD": "K13",
+        "CE": "P15",
+        "CF": "T11",
+        "CG": "L18",
+        "DP": "H15",
+        "AN0": "J17",
+        "AN1": "J18",
+        "AN2": "T9",
+        "AN3": "J14",
+        "AN4": "P14",
+        "AN5": "T14",
+        "AN6": "K2",
+        "AN7": "U13"
+      },
+      "errore_comune": "I segnali del display sono attivi bassi: per accendere un segmento il pin va portato a 0, non a 1.",
+      "fonti": [
+        {
+          "id": "nexys_rm",
+          "pagina": 20
+        },
+        {
+          "id": "nexys_rm",
+          "pagina": 21
+        },
+        {
+          "id": "nexys_xdc"
+        }
+      ],
+      "collegati": [
+        "iob"
+      ]
+    },
+    "board.button": {
+      "livello": "L0",
+      "padre": "board",
+      "titolo": "I pulsanti",
+      "termine_en": "push buttons",
+      "in_breve": "Cinque pulsanti a croce (BTNU, BTND, BTNL, BTNR, BTNC) e il pulsante CPU RESET.",
+      "spiegazione": [
+        "I pulsanti sono collegati all'FPGA attraverso resistenze in serie. Il pulsante CPU RESET è attivo basso (nel file dei vincoli si chiama CPU_RESETN)."
+      ],
+      "pin": {
+        "BTNC": "N17",
+        "BTNU": "M18",
+        "BTNL": "P17",
+        "BTNR": "M17",
+        "BTND": "P18",
+        "CPU_RESETN": "C12"
+      },
+      "fonti": [
+        {
+          "id": "nexys_rm",
+          "pagina": 19
+        },
+        {
+          "id": "nexys_xdc"
+        }
+      ]
+    },
+    "board.prog": {
+      "livello": "L0",
+      "padre": "board",
+      "titolo": "Programmazione: porta USB-JTAG, pulsante PROG e LED DONE",
+      "termine_en": "USB-JTAG port, PROG button, DONE LED",
+      "in_breve": "Dal PC il bitstream arriva al chip attraverso la porta USB marcata PROG, con il protocollo JTAG.",
+      "spiegazione": [
+        "Un PC può programmare l'FPGA in qualsiasi momento, purché la board sia accesa, attraverso il circuito USB-JTAG della porta J6, marcata «PROG». La stessa porta fa anche da collegamento seriale USB-UART.",
+        "Premere il pulsante PROG azzera la memoria di configurazione dell'FPGA. Quando la programmazione riesce, l'FPGA accende il LED DONE."
+      ],
+      "fonti": [
+        {
+          "id": "nexys_rm",
+          "pagina": 8
+        },
+        {
+          "id": "nexys_rm",
+          "pagina": 4
+        }
+      ],
+      "collegati": [
+        "configurazione"
+      ]
+    },
+    "board.jp1": {
+      "livello": "L0",
+      "padre": "board",
+      "titolo": "Il ponticello di modo JP1",
+      "termine_en": "mode jumper",
+      "in_breve": "Sceglie da dove l'FPGA carica la configurazione all'accensione.",
+      "spiegazione": [
+        "Il ponticello JP1 (mode) e il ponticello JP2 (scelta del supporto) selezionano il modo di programmazione: JTAG dal PC, flash Quad-SPI, oppure un file da una chiavetta USB o da una scheda microSD."
+      ],
+      "fonti": [
+        {
+          "id": "nexys_rm",
+          "pagina": 8
+        },
+        {
+          "id": "nexys_rm",
+          "pagina": 9
+        }
+      ],
+      "collegati": [
+        "configurazione"
+      ]
+    },
+    "board.flash": {
+      "livello": "L0",
+      "padre": "board",
+      "titolo": "La memoria flash Quad-SPI",
+      "termine_en": "Quad-SPI flash",
+      "in_breve": "Memoria non volatile da 16 MiB: conserva il bitstream quando la board è spenta.",
+      "spiegazione": [
+        "La configurazione dell'FPGA è volatile: si perde quando la board si spegne. Per non doverla riscaricare ogni volta dal PC, il bitstream si può salvare nella flash, da cui l'FPGA lo legge all'accensione attraverso la porta SPI."
+      ],
+      "numeri": [
+        {
+          "voce": "Capacità",
+          "valore": "128 Mib, cioè 16 MiB",
+          "fonte": "nexys_rm",
+          "pagina": 9
+        }
+      ],
+      "fonti": [
+        {
+          "id": "nexys_rm",
+          "pagina": 8
+        },
+        {
+          "id": "nexys_rm",
+          "pagina": 9
+        }
+      ],
+      "collegati": [
+        "configurazione"
+      ]
+    },
+    "board.ddr2": {
+      "livello": "L0",
+      "padre": "board",
+      "titolo": "La memoria DDR2",
+      "termine_en": "DDR2 SDRAM",
+      "in_breve": "128 MiB di RAM esterna al chip, per quando la memoria interna non basta.",
+      "spiegazione": [
+        "È una RAM esterna: per usarla i segnali devono uscire dal chip e tornare indietro, e per questo è più lenta da raggiungere della memoria interna (RAM distribuita e block RAM)."
+      ],
+      "numeri": [
+        {
+          "voce": "Capacità",
+          "valore": "1 Gib, cioè 128 MiB",
+          "fonte": "nexys_rm",
+          "pagina": 9
+        }
+      ],
+      "fonti": [
+        {
+          "id": "nexys_rm",
+          "pagina": 9
+        }
+      ],
+      "collegati": [
+        "lut.distram",
+        "bram"
+      ]
+    },
+    "board.usb_sd": {
+      "livello": "L0",
+      "padre": "board",
+      "titolo": "Porta USB host e slot microSD",
+      "termine_en": "USB host port, microSD slot",
+      "in_breve": "Si può programmare l'FPGA anche da una chiavetta USB o da una scheda microSD.",
+      "spiegazione": [
+        "Con il ponticello JP1 su «USB/SD», l'FPGA si programma con un file su una chiavetta collegata alla porta USB host (J5) o su una scheda microSD nello slot J1."
+      ],
+      "fonti": [
+        {
+          "id": "nexys_rm",
+          "pagina": 9
+        }
+      ],
+      "collegati": [
+        "board.jp1",
+        "configurazione"
+      ]
+    },
+    "board.pmod": {
+      "livello": "L0",
+      "padre": "board",
+      "titolo": "I connettori Pmod",
+      "termine_en": "Pmod connectors",
+      "in_breve": "Quattro connettori di espansione da 12 piedini, con 32 pin di I/O dell'FPGA in tutto, più il connettore JXADC per gli ingressi analogici.",
+      "spiegazione": [
+        "I connettori Pmod sono femmina, a 2 × 6 piedini, e portano all'esterno pin di I/O dell'FPGA per collegare moduli aggiuntivi. Il connettore JXADC è collegato agli ingressi analogici ausiliari, che arrivano al convertitore analogico-digitale (XADC) del chip."
+      ],
+      "numeri": [
+        {
+          "voce": "Pin di I/O sui quattro Pmod",
+          "valore": "32",
+          "fonte": "nexys_rm",
+          "pagina": 4
+        }
+      ],
+      "fonti": [
+        {
+          "id": "nexys_rm",
+          "pagina": 4
+        },
+        {
+          "id": "nexys_rm",
+          "pagina": 22
+        },
+        {
+          "id": "nexys_rm",
+          "pagina": 23
+        }
+      ],
+      "collegati": [
+        "chip.xadc"
+      ]
+    },
+    "board.altri": {
+      "livello": "L0",
+      "padre": "board",
+      "titolo": "Le altre periferiche",
+      "termine_en": "other peripherals",
+      "in_breve": "Uscita VGA, Ethernet, audio, microfono, accelerometro e sensore di temperatura.",
+      "spiegazione": [
+        "La board ha anche un'uscita VGA a 12 bit, un'interfaccia Ethernet 10/100, un'uscita audio PWM, un microfono PDM, un accelerometro a tre assi (ADXL362) e un sensore di temperatura (ADT7420). Per capire l'FPGA non sono necessarie; le uscite audio e video spiegano in parte il costo della board."
+      ],
+      "fonti": [
+        {
+          "id": "nexys_rm",
+          "pagina": 4
+        },
+        {
+          "id": "nexys_rm",
+          "pagina": 24
+        }
+      ]
+    },
+    "chip": {
+      "livello": "L1",
+      "padre": "board",
+      "titolo": "Dentro il chip: Artix-7 XC7A100T",
+      "termine_en": "FPGA die",
+      "in_breve": "Una matrice di blocchi logici e di blocchi dedicati, organizzata in colonne, circondata dagli I/O e divisa in regioni di clock.",
+      "spiegazione": [
+        "Un FPGA contiene una matrice di blocchi logici programmabili e una gerarchia di interconnessioni riconfigurabili che permettono di collegarli fra loro. I blocchi logici si configurano per realizzare funzioni combinatorie e contengono anche elementi di memoria.",
+        "Le famiglie moderne includono anche circuiti per funzioni di livello più alto: moltiplicatori e blocchi DSP, memorie, logica di I/O veloce. Nell'Artix-7 gli elementi fondamentali sono i CLB, gli IOB, le block RAM e le unità di gestione del clock, a cui si aggiungono DSP, transceiver e convertitori analogico-digitali, tutti collegati da una switch matrix programmabile.",
+        "Le 7 Series sono costruite a colonne (architettura ASMBL): ogni colonna contiene un solo tipo di risorsa, e AMD sceglie quante colonne di ciascun tipo mettere in ogni dispositivo."
+      ],
+      "numeri": [
+        {
+          "voce": "Celle logiche",
+          "valore": "101 440",
+          "fonte": "ds180",
+          "pagina": 3
+        },
+        {
+          "voce": "Slice",
+          "valore": "15 850 (11 100 SLICEL e 4 750 SLICEM)",
+          "fonte": "ug474",
+          "pagina": 11
+        },
+        {
+          "voce": "LUT a 6 ingressi",
+          "valore": "63 400",
+          "fonte": "ug474",
+          "pagina": 11
+        },
+        {
+          "voce": "Flip-flop",
+          "valore": "126 800",
+          "fonte": "ug474",
+          "pagina": 11
+        },
+        {
+          "voce": "RAM distribuita",
+          "valore": "1 188 Kb",
+          "fonte": "ds180",
+          "pagina": 3
+        },
+        {
+          "voce": "DSP",
+          "valore": "240",
+          "fonte": "ds180",
+          "pagina": 3
+        },
+        {
+          "voce": "Block RAM",
+          "valore": "135 da 36 Kb (4 860 Kb)",
+          "fonte": "ds180",
+          "pagina": 3
+        },
+        {
+          "voce": "CMT (un MMCM e un PLL ciascuno)",
+          "valore": "6",
+          "fonte": "ds180",
+          "pagina": 3
+        },
+        {
+          "voce": "Banchi di I/O",
+          "valore": "6",
+          "fonte": "ds180",
+          "pagina": 3
+        },
+        {
+          "voce": "Tecnologia",
+          "valore": "28 nm",
+          "fonte": "ds180",
+          "pagina": 1
+        }
+      ],
+      "fonti": [
+        {
+          "id": "ds180",
+          "pagina": 3
+        },
+        {
+          "id": "ug474",
+          "pagina": 15
+        }
+      ],
+      "figli": [
+        "chip.pin",
+        "chip.iobank",
+        "chip.colonne",
+        "chip.regioni",
+        "chip.config",
+        "chip.xadc",
+        "chip.gtp",
+        "chip.pcie"
+      ],
+      "entra_in": "regione"
+    },
+    "chip.pin": {
+      "livello": "L1",
+      "padre": "chip",
+      "titolo": "I pin",
+      "termine_en": "package pins (balls)",
+      "in_breve": "I contatti metallici del chip, non i connettori della board: ogni ingresso e uscita del progetto passa da un pin.",
+      "spiegazione": [
+        "Il chip è chiuso in un package che sotto ha centinaia di contatti; sulla board le piste del circuito stampato li collegano a interruttori, LED, display e connettori.",
+        "Anche solo una porta AND ha bisogno di due pin per gli ingressi e uno per l'uscita: per questo gli IOB formano una cornice intorno alla logica. In Vivado si assegna ogni porta del progetto a un pin con i vincoli fisici del file XDC."
+      ],
+      "numeri": [
+        {
+          "voce": "Pin di I/O utente nel package CSG324",
+          "valore": "210",
+          "fonte": "ds180",
+          "pagina": 3
+        },
+        {
+          "voce": "Passo fra i contatti",
+          "valore": "0,8 mm",
+          "fonte": "ds180",
+          "pagina": 3
+        }
+      ],
+      "fonti": [
+        {
+          "id": "ds180",
+          "pagina": 3
+        }
+      ],
+      "collegati": [
+        "iob",
+        "board.switch",
+        "board.led"
+      ]
+    },
+    "chip.iobank": {
+      "livello": "L1",
+      "padre": "chip",
+      "titolo": "I banchi di I/O",
+      "termine_en": "I/O banks",
+      "in_breve": "Gli IOB sono raggruppati in banchi da 50; nell'Artix-7 sono tutti di tipo High-Range, da 1,2 a 3,3 V.",
+      "spiegazione": [
+        "Ogni regione di clock comprende un banco di I/O da 50 pin. Nell'Artix-7 i banchi sono di tipo High-Range (HR), che supportano tensioni di I/O da 1,2 V a 3,3 V.",
+        "Sulla Nexys A7 quasi tutti i pin usano lo standard LVCMOS33 (3,3 V); gli interruttori SW8 e SW9 stanno su un banco a 1,8 V e usano LVCMOS18."
+      ],
+      "numeri": [
+        {
+          "voce": "Pin per banco",
+          "valore": "50",
+          "fonte": "da_verificare"
+        },
+        {
+          "voce": "Banchi nell'XC7A100T",
+          "valore": "6",
+          "fonte": "ds180",
+          "pagina": 3
+        }
+      ],
+      "fonti": [
+        {
+          "id": "ds180",
+          "pagina": 3
+        },
+        {
+          "id": "nexys_xdc"
+        }
+      ],
+      "collegati": [
+        "iob"
+      ]
+    },
+    "chip.colonne": {
+      "livello": "L1",
+      "padre": "chip",
+      "titolo": "Le colonne ASMBL",
+      "termine_en": "ASMBL columnar architecture",
+      "in_breve": "Il chip è fatto di colonne verticali, ognuna con un solo tipo di risorsa: CLB, block RAM, DSP, clock, I/O.",
+      "spiegazione": [
+        "Le 7 Series seguono l'architettura a colonne ASMBL (Advanced Silicon Modular Block). AMD progetta ogni dispositivo scegliendo quante colonne di ciascun tipo mettere: più colonne di DSP per l'elaborazione dei segnali, più block RAM per memorizzare dati, più logica per i progetti di controllo.",
+        "Non è una configurazione del progettista: i dispositivi sono costruiti così, e il cliente sceglie quello con la combinazione adatta alla sua applicazione."
+      ],
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 15
+        },
+        {
+          "id": "ug474",
+          "pagina": 16
+        }
+      ],
+      "entra_in": "regione"
+    },
+    "chip.regioni": {
+      "livello": "L1",
+      "padre": "chip",
+      "titolo": "Le regioni di clock",
+      "termine_en": "clock regions",
+      "in_breve": "Il chip è diviso in regioni rettangolari, ognuna servita dalla propria rete di clock; si entra in una regione per vedere le colonne da vicino.",
+      "spiegazione": [
+        "Ai fini del clock ogni dispositivo è diviso in regioni, da una nel più piccolo a 24 nel più grande. Una regione è alta 50 CLB, comprende un banco di I/O da 50 pin e ha al centro una riga orizzontale di clock (HROW).",
+        "Ogni dispositivo ha 32 linee di clock globali, che raggiungono tutte le risorse sequenziali del chip; ogni regione ne può usare fino a 12."
+      ],
+      "numeri": [
+        {
+          "voce": "Regioni nelle 7 Series",
+          "valore": "da 1 a 24",
+          "fonte": "da_verificare"
+        },
+        {
+          "voce": "Regioni nell'XC7A100T",
+          "valore": "nel disegno 6 (2 colonne × 3 righe): ipotesi non verificata, da controllare nella finestra Device di Vivado",
+          "fonte": "claude"
+        },
+        {
+          "voce": "Linee di clock globali",
+          "valore": "32, fino a 12 per regione",
+          "fonte": "da_verificare"
+        }
+      ],
+      "fonti": [
+        {
+          "id": "ug472",
+          "pagina": 16
+        }
+      ],
+      "entra_in": "regione"
+    },
+    "chip.config": {
+      "livello": "L1",
+      "padre": "chip",
+      "titolo": "La logica di configurazione",
+      "termine_en": "configuration logic",
+      "in_breve": "La parte del chip che riceve il bitstream e lo scrive in tutti gli elementi di memoria di configurazione.",
+      "spiegazione": [
+        "La funzione dell'FPGA si definisce caricando i dati di configurazione nei suoi elementi di memoria interni. Il caricamento passa da questa logica, attraverso il JTAG, la flash o un'altra sorgente esterna."
+      ],
+      "fonti": [
+        {
+          "id": "ug470",
+          "pagina": 11
+        }
+      ],
+      "collegati": [
+        "configurazione"
+      ],
+      "vai_a": "configurazione"
+    },
+    "chip.xadc": {
+      "livello": "L1",
+      "padre": "chip",
+      "titolo": "Il convertitore analogico-digitale (XADC)",
+      "termine_en": "XADC",
+      "in_breve": "Un'interfaccia analogica configurabile con due convertitori a 12 bit e sensori di temperatura e tensione sul chip.",
+      "spiegazione": [
+        "L'XADC contiene due convertitori analogico-digitali da 12 bit e un milione di campioni al secondo, con sensori di temperatura e di alimentazione sul chip. Sulla Nexys A7 i suoi ingressi ausiliari arrivano al connettore JXADC."
+      ],
+      "numeri": [
+        {
+          "voce": "Blocchi XADC nell'XC7A100T",
+          "valore": "1",
+          "fonte": "ds180",
+          "pagina": 3
+        }
+      ],
+      "fonti": [
+        {
+          "id": "ds180",
+          "pagina": 1
+        },
+        {
+          "id": "ds180",
+          "pagina": 3
+        },
+        {
+          "id": "nexys_rm",
+          "pagina": 23
+        }
+      ],
+      "collegati": [
+        "board.pmod"
+      ]
+    },
+    "chip.gtp": {
+      "livello": "L1",
+      "padre": "chip",
+      "titolo": "I transceiver GTP",
+      "termine_en": "GTP transceivers",
+      "in_breve": "Ricetrasmettitori seriali veloci; il chip ne ha 8, ma nel package della Nexys A7 non sono collegati all'esterno.",
+      "spiegazione": [
+        "I transceiver servono a comunicazioni seriali ad alta velocità fra chip. Nell'Artix-7 arrivano a 6,6 Gb/s. L'XC7A100T ne ha 8, ma nel package CSG324 il datasheet ne indica 0: sulla Nexys A7 non si usano."
+      ],
+      "numeri": [
+        {
+          "voce": "GTP dell'XC7A100T",
+          "valore": "8",
+          "fonte": "ds180",
+          "pagina": 3
+        },
+        {
+          "voce": "GTP nel package CSG324",
+          "valore": "0",
+          "fonte": "ds180",
+          "pagina": 3
+        },
+        {
+          "voce": "Velocità massima nell'Artix-7",
+          "valore": "6,6 Gb/s",
+          "fonte": "ds180",
+          "pagina": 1
+        }
+      ],
+      "fonti": [
+        {
+          "id": "ds180",
+          "pagina": 1
+        },
+        {
+          "id": "ds180",
+          "pagina": 3
+        }
+      ]
+    },
+    "chip.pcie": {
+      "livello": "L1",
+      "padre": "chip",
+      "titolo": "Il blocco PCI Express",
+      "termine_en": "integrated block for PCI Express",
+      "in_breve": "Un blocco dedicato per l'interfaccia PCI Express; nell'Artix-7 fino a x4 Gen2.",
+      "spiegazione": [
+        "È uno dei blocchi già realizzati nel silicio. In una regione di clock può sostituire cinque delle block RAM da 36 Kb di una colonna. Nei progetti didattici di base non si usa."
+      ],
+      "numeri": [
+        {
+          "voce": "Blocchi PCIe nell'XC7A100T",
+          "valore": "1",
+          "fonte": "ds180",
+          "pagina": 3
+        }
+      ],
+      "fonti": [
+        {
+          "id": "ds180",
+          "pagina": 3
+        },
+        {
+          "id": "ug472",
+          "pagina": 16
+        }
+      ]
+    },
+    "regione": {
+      "livello": "L2",
+      "padre": "chip",
+      "titolo": "Una regione di clock da vicino",
+      "termine_en": "clock region",
+      "in_breve": "Un rettangolo del chip con le sue colonne di CLB, block RAM e DSP, un banco di I/O, un'unità di clock e la riga orizzontale di clock al centro.",
+      "spiegazione": [
+        "Una regione di clock comprende tutti gli elementi sincroni (CLB, I/O, transceiver, DSP, block RAM, CMT) di un'area alta 50 CLB e con un banco di I/O da 50 pin.",
+        "In ogni colonna, una regione contiene sempre 50 CLB, dieci block RAM da 36 Kb (salvo quando cinque sono sostituite dal blocco PCI Express) e 20 slice DSP. Al centro corre la riga orizzontale di clock (HROW)."
+      ],
+      "numeri": [
+        {
+          "voce": "CLB per colonna",
+          "valore": "50",
+          "fonte": "ug472",
+          "pagina": 16
+        },
+        {
+          "voce": "Block RAM da 36 Kb per colonna",
+          "valore": "10",
+          "fonte": "ug472",
+          "pagina": 16
+        },
+        {
+          "voce": "Slice DSP per colonna",
+          "valore": "20",
+          "fonte": "ug472",
+          "pagina": 16
+        },
+        {
+          "voce": "Pin di I/O del banco",
+          "valore": "50",
+          "fonte": "ug472",
+          "pagina": 16
+        }
+      ],
+      "fonti": [
+        {
+          "id": "ug472",
+          "pagina": 16
+        }
+      ],
+      "figli": [
+        "regione.clb",
+        "regione.bram",
+        "regione.dsp",
+        "regione.cmt",
+        "regione.io",
+        "regione.hrow"
+      ],
+      "entra_in": "clb"
+    },
+    "regione.clb": {
+      "livello": "L2",
+      "padre": "regione",
+      "titolo": "Colonna di CLB",
+      "termine_en": "CLB column",
+      "in_breve": "Una pila di 50 CLB; le colonne di SLICEL e di SLICEM si alternano.",
+      "spiegazione": [
+        "Le slice dei CLB impilati in una colonna condividono la catena di carry, che sale da una slice a quella sopra."
+      ],
+      "fonti": [
+        {
+          "id": "ug472",
+          "pagina": 16
+        },
+        {
+          "id": "ug474",
+          "pagina": 16
+        }
+      ],
+      "entra_in": "clb"
+    },
+    "regione.bram": {
+      "livello": "L2",
+      "padre": "regione",
+      "titolo": "Colonna di block RAM",
+      "termine_en": "block RAM column",
+      "in_breve": "Dieci block RAM da 36 Kb per regione.",
+      "spiegazione": [
+        "Ogni block RAM è un blocco di memoria già realizzato nel silicio, a doppia porta."
+      ],
+      "fonti": [
+        {
+          "id": "ug472",
+          "pagina": 16
+        }
+      ],
+      "vai_a": "bram"
+    },
+    "regione.dsp": {
+      "livello": "L2",
+      "padre": "regione",
+      "titolo": "Colonna di DSP",
+      "termine_en": "DSP column",
+      "in_breve": "Venti slice DSP per regione, a coppie (tile).",
+      "spiegazione": [
+        "Due slice DSP e la loro interconnessione dedicata formano un tile; i tile sono impilati in colonna."
+      ],
+      "fonti": [
+        {
+          "id": "ug472",
+          "pagina": 16
+        },
+        {
+          "id": "ug479",
+          "pagina": 20
+        }
+      ],
+      "vai_a": "dsp"
+    },
+    "regione.cmt": {
+      "livello": "L2",
+      "padre": "regione",
+      "titolo": "L'unità di gestione del clock (CMT)",
+      "termine_en": "clock management tile",
+      "in_breve": "Un MMCM e un PLL, al bordo della regione.",
+      "spiegazione": [
+        "Una regione contiene, quando c'è, un CMT."
+      ],
+      "fonti": [
+        {
+          "id": "ug472",
+          "pagina": 16
+        }
+      ],
+      "vai_a": "cmt"
+    },
+    "regione.io": {
+      "livello": "L2",
+      "padre": "regione",
+      "titolo": "Il banco di I/O",
+      "termine_en": "I/O bank",
+      "in_breve": "50 IOB al bordo del chip.",
+      "spiegazione": [
+        "Gli IOB della regione collegano la logica interna ai pin del package."
+      ],
+      "fonti": [
+        {
+          "id": "ug472",
+          "pagina": 16
+        }
+      ],
+      "vai_a": "iob"
+    },
+    "regione.hrow": {
+      "livello": "L2",
+      "padre": "regione",
+      "titolo": "La riga orizzontale di clock (HROW)",
+      "termine_en": "horizontal clock row",
+      "in_breve": "La linea al centro della regione da cui il clock si distribuisce alle colonne.",
+      "spiegazione": [
+        "Le linee di clock globali arrivano dalla spina centrale del chip (clock backbone, con i buffer globali BUFG) e, attraverso le 12 linee orizzontali della regione, raggiungono le risorse sequenziali."
+      ],
+      "fonti": [
+        {
+          "id": "ug472",
+          "pagina": 15
+        },
+        {
+          "id": "ug472",
+          "pagina": 16
+        }
+      ],
+      "collegati": [
+        "cmt"
+      ],
+      "interazione": "sim_clock"
+    },
+    "clb": {
+      "livello": "L3",
+      "padre": "regione",
+      "titolo": "Il blocco logico configurabile (CLB)",
+      "termine_en": "Configurable Logic Block",
+      "in_breve": "Due slice e una switch matrix: la risorsa logica principale per i circuiti combinatori e sequenziali.",
+      "spiegazione": [
+        "Il CLB contiene una coppia di slice ed è collegato a una switch matrix, attraverso la quale accede alla rete generale di instradamento. Le due slice non sono collegate fra loro: ognuna ha la propria catena di carry, che prosegue nella slice sopra, nella stessa colonna.",
+        "Anche due CLB vicini non hanno un filo diretto: ognuno comunica solo attraverso la propria switch matrix."
+      ],
+      "numeri": [
+        {
+          "voce": "Slice",
+          "valore": "2",
+          "fonte": "ug474",
+          "pagina": 17
+        },
+        {
+          "voce": "LUT",
+          "valore": "8",
+          "fonte": "ug474",
+          "pagina": 17
+        },
+        {
+          "voce": "Flip-flop",
+          "valore": "16",
+          "fonte": "ug474",
+          "pagina": 17
+        },
+        {
+          "voce": "Catene di carry",
+          "valore": "2",
+          "fonte": "ug474",
+          "pagina": 17
+        },
+        {
+          "voce": "RAM distribuita (solo con una SLICEM)",
+          "valore": "256 bit",
+          "fonte": "ug474",
+          "pagina": 17
+        },
+        {
+          "voce": "Shift register (solo con una SLICEM)",
+          "valore": "128 bit",
+          "fonte": "ug474",
+          "pagina": 17
+        }
+      ],
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 9
+        },
+        {
+          "id": "ug474",
+          "pagina": 16
+        },
+        {
+          "id": "ug474",
+          "pagina": 17
+        }
+      ],
+      "figli": [
+        "clb.switch",
+        "clb.slice0",
+        "clb.slice1",
+        "clb.carry",
+        "clb.nomi"
+      ],
+      "entra_in": "slice"
+    },
+    "clb.switch": {
+      "livello": "L3",
+      "padre": "clb",
+      "titolo": "La switch matrix",
+      "termine_en": "switch matrix",
+      "in_breve": "La rete di multiplexer che collega il CLB alle linee di instradamento: programmarla significa decidere chi parla con chi.",
+      "spiegazione": [
+        "I collegamenti fra i blocchi non possono essere fili fissi: un collegamento utile a un progetto sarebbe inutile in un altro. Il collegamento si rende dinamico con una rete di multiplexer e demultiplexer, che a seconda dei segnali di selezione instrada un segnale verso una qualsiasi delle celle a cui è potenzialmente collegato.",
+        "Programmare un FPGA significa programmare non solo la logica, ma anche le interconnessioni, e questo lavoro lo fa il tool."
+      ],
+      "fonti": [
+        {
+          "id": "da_verificare"
+        }
+      ],
+      "collegati": [
+        "interconnessione"
+      ],
+      "interazione": "sim_switch"
+    },
+    "clb.slice0": {
+      "livello": "L3",
+      "padre": "clb",
+      "titolo": "Slice(0)",
+      "termine_en": "SLICE(0)",
+      "in_breve": "La slice in basso, nella colonna di sinistra del CLB.",
+      "spiegazione": [
+        "Le due slice di un CLB si chiamano SLICE(0) e SLICE(1); un CLB contiene due SLICEL oppure una SLICEL e una SLICEM."
+      ],
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 16
+        },
+        {
+          "id": "ug474",
+          "pagina": 18
+        }
+      ],
+      "entra_in": "slice"
+    },
+    "clb.slice1": {
+      "livello": "L3",
+      "padre": "clb",
+      "titolo": "Slice(1)",
+      "termine_en": "SLICE(1)",
+      "in_breve": "La slice in alto, nella colonna di destra del CLB.",
+      "spiegazione": [
+        "Non ha collegamenti diretti con la Slice(0)."
+      ],
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 16
+        }
+      ],
+      "entra_in": "slice"
+    },
+    "clb.carry": {
+      "livello": "L3",
+      "padre": "clb",
+      "titolo": "CIN e COUT",
+      "termine_en": "carry in, carry out",
+      "in_breve": "Il riporto entra dal basso (CIN) e esce verso la slice sopra (COUT).",
+      "spiegazione": [
+        "Le slice della stessa colonna formano un'unica linea di carry, che sale da una slice all'altra."
+      ],
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 16
+        },
+        {
+          "id": "ug474",
+          "pagina": 43
+        }
+      ],
+      "vai_a": "slice.carry"
+    },
+    "clb.nomi": {
+      "livello": "L3",
+      "padre": "clb",
+      "titolo": "I nomi delle slice (X e Y)",
+      "termine_en": "slice coordinates",
+      "in_breve": "Ogni slice ha un nome del tipo SLICE_X1Y0: la X dice la colonna di slice, la Y la riga.",
+      "spiegazione": [
+        "Il numero dopo la X indica la colonna di slice, contata da sinistra: 0 e 1 sono le due slice del primo CLB, 2 e 3 quelle del secondo. Il numero dopo la Y indica la riga: è uguale per le due slice di un CLB e cresce dal basso verso l'alto. Sono i nomi che Vivado usa nel piazzamento."
+      ],
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 17
+        }
+      ]
+    },
+    "slice": {
+      "livello": "L4",
+      "padre": "clb",
+      "titolo": "La slice",
+      "termine_en": "slice (SLICEL / SLICEM)",
+      "in_breve": "Quattro LUT, otto elementi di memoria, tre multiplexer larghi e la logica di carry: tutto ciò che serve per una macchina sequenziale.",
+      "spiegazione": [
+        "Le slice sono di due tipi: SLICEL (logic) e SLICEM (memory). Circa due terzi sono SLICEL. Tutte realizzano funzioni logiche, aritmetiche e ROM; le SLICEM, in più, possono usare le LUT come RAM distribuita e come shift register. Le SLICEM sono meno numerose perché queste capacità costano.",
+        "Una slice contiene sia una parte combinatoria, le LUT, sia elementi di memoria, i flip-flop: è quanto serve per una macchina sequenziale secondo il modello di Huffman, con la parte combinatoria che calcola stato prossimo e uscite e i flip-flop che conservano lo stato."
+      ],
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 18
+        }
+      ],
+      "figli": [
+        "slice.lut",
+        "slice.ff",
+        "slice.mux",
+        "slice.carry",
+        "slice.ctrl"
+      ],
+      "varianti": [
+        "SLICEL",
+        "SLICEM"
+      ],
+      "entra_in": "lut"
+    },
+    "slice.lut": {
+      "livello": "L4",
+      "padre": "slice",
+      "titolo": "Le quattro LUT (A, B, C, D)",
+      "termine_en": "look-up tables",
+      "in_breve": "Quattro LUT a 6 ingressi: la parte combinatoria della slice.",
+      "spiegazione": [
+        "Ognuna ha sei ingressi (A1–A6) e due uscite (O5 e O6)."
+      ],
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 21
+        }
+      ],
+      "entra_in": "lut"
+    },
+    "slice.ff": {
+      "livello": "L4",
+      "padre": "slice",
+      "titolo": "Gli otto elementi di memoria",
+      "termine_en": "storage elements (flip-flops / latches)",
+      "in_breve": "Quattro sono solo flip-flop D; gli altri quattro possono essere flip-flop D oppure latch.",
+      "spiegazione": [
+        "Quattro elementi sono solo flip-flop D sensibili al fronte (edge-triggered); gli altri quattro si configurano come flip-flop D oppure come latch, sensibili al livello. Il latch segue l'ingresso per tutto il tempo in cui il clock è basso; il flip-flop lo campiona solo sul fronte.",
+        "Se i quattro elementi doppi sono configurati come latch, gli altri quattro non si possono usare. Una slice ha quindi due sole configurazioni: 8 flip-flop, oppure 4 latch con i 4 elementi fissi spenti. I latch servono per la logica asincrona, che nella progettazione sincrona di base non si usa; la scelta la fa il tool."
+      ],
+      "errore_comune": "Pensare che si possano avere 4 flip-flop e 4 latch insieme: se si usano i latch, gli altri quattro elementi restano inutilizzabili.",
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 9
+        },
+        {
+          "id": "ug474",
+          "pagina": 21
+        },
+        {
+          "id": "ug474",
+          "pagina": 22
+        }
+      ],
+      "interazione": "sim_ff_latch"
+    },
+    "slice.mux": {
+      "livello": "L4",
+      "padre": "slice",
+      "titolo": "I multiplexer larghi (F7AMUX, F7BMUX, F8MUX)",
+      "termine_en": "wide multiplexers",
+      "in_breve": "Combinano le uscite delle LUT per ottenere qualsiasi funzione di 7 o 8 variabili dentro la stessa slice.",
+      "spiegazione": [
+        "Gli ingressi di una funzione si contano come variabili distinte, non come fili. Le LUT A e B ricevono le stesse sei variabili: la LUT A contiene la metà della tabella di verità in cui la settima variabile vale 0, la LUT B l'altra metà, e il F7AMUX, comandato dalla settima variabile, fa passare l'uscita giusta: 6 + 1 = 7 variabili. Allo stesso modo, con quattro LUT, il F8MUX sceglie fra i due F7 con un'ottava variabile: 6 + 1 + 1 = 8.",
+        "Con le stesse risorse una slice realizza quattro multiplexer 4:1, due 8:1 oppure uno 16:1. Restare nella stessa slice evita la switch matrix, che costa tempo; oltre gli 8 ingressi servono più slice.",
+        "Si parla di funzioni fino a 27 ingressi: sono funzioni «di uso generale», non qualsiasi. Si ottengono dando alle LUT variabili diverse: 6 + 6 + 1 = 13 con due LUT, 4 × 6 + 2 + 1 = 27 con quattro."
+      ],
+      "errore_comune": "Contare 6 + 6 + 1 = 13 ingressi per una funzione qualsiasi di due LUT: le due LUT condividono le stesse sei variabili.",
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 21
+        },
+        {
+          "id": "ug474",
+          "pagina": 39
+        },
+        {
+          "id": "ug474",
+          "pagina": 40
+        },
+        {
+          "id": "ug474",
+          "pagina": 42
+        },
+        {
+          "id": "claude"
+        }
+      ],
+      "interazione": "sim_widemux"
+    },
+    "slice.carry": {
+      "livello": "L4",
+      "padre": "slice",
+      "titolo": "La logica di carry (CARRY4)",
+      "termine_en": "carry logic",
+      "in_breve": "La logica dedicata al riporto delle somme: 4 bit per slice, in cascata lungo la colonna.",
+      "spiegazione": [
+        "Ogni slice ha una logica di carry dedicata e veloce, di tipo lookahead, per addizioni e sottrazioni: per ogni bit un multiplexer di carry (MUXCY) e una porta XOR. La catena sale verso l'alto, è alta quattro bit per slice e si collega in cascata alla slice sopra, da COUT a CIN.",
+        "Il ritardo di un sommatore cresce linearmente con il numero di bit: un sommatore a 32 bit usa 8 slice una sopra l'altra, e il riporto le attraversa tutte. Se in VHDL si scrive un sommatore, Vivado può riconoscerlo e piazzarlo sulle slice della stessa colonna, per usare la linea di carry dedicata."
+      ],
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 43
+        },
+        {
+          "id": "ug474",
+          "pagina": 44
+        }
+      ],
+      "interazione": "sim_carry"
+    },
+    "slice.ctrl": {
+      "livello": "L4",
+      "padre": "slice",
+      "titolo": "I segnali di controllo (CLK, CE, SR)",
+      "termine_en": "control signals",
+      "in_breve": "Clock, abilitazione del clock e set/reset sono comuni a tutti gli elementi di memoria della slice.",
+      "spiegazione": [
+        "Se un flip-flop della slice usa il set/reset o l'abilitazione, anche gli altri flip-flop usati nella slice li hanno, perché il segnale è comune. Solo il clock ha la polarità programmabile."
+      ],
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 22
+        }
+      ]
+    },
+    "lut": {
+      "livello": "L5",
+      "padre": "slice",
+      "titolo": "La LUT",
+      "termine_en": "Look-Up Table",
+      "in_breve": "Una piccola SRAM che contiene una tabella di verità: gli ingressi fanno da indirizzo, la cella letta è l'uscita.",
+      "spiegazione": [
+        "Una LUT è essenzialmente una memoria SRAM programmata con una stringa di inizializzazione. Una LUT a 6 ingressi ha 2^6 = 64 combinazioni di ingresso, quindi 64 celle da un bit, una per riga della tabella; gli ingressi fanno da indirizzo e, attraverso un multiplexer, selezionano la cella che va in uscita.",
+        "Sull'FPGA una macchina combinatoria non si realizza minimizzando e costruendo porte AND e OR: la sua tabella di verità si scrive direttamente in una LUT. Per una funzione che entra in una LUT minimizzare non serve, perché il ritardo di una LUT non dipende dalla funzione.",
+        "Ogni LUT a 6 ingressi è fatta di due LUT a 5 ingressi e di un multiplexer: come LUT unica realizza una funzione qualsiasi di 6 variabili (uscita O6); come due LUT a 5 ingressi, con A6 fisso a 1, realizza due funzioni sulle stesse 5 variabili (O5 e O6), oppure due funzioni di 3 e 2 variabili o meno."
+      ],
+      "esempio": "Una LUT a 2 ingressi programmata con i bit 0, 0, 0, 1 realizza l'AND.",
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 21
+        }
+      ],
+      "figli": [
+        "lut.sram",
+        "lut.mux",
+        "lut.o5o6",
+        "lut.rom",
+        "lut.distram",
+        "lut.srl"
+      ],
+      "interazione": "sim_lut"
+    },
+    "lut.sram": {
+      "livello": "L5",
+      "padre": "lut",
+      "titolo": "Le 64 celle di SRAM",
+      "termine_en": "configuration SRAM cells",
+      "in_breve": "Un bit per ogni riga della tabella di verità, scritto alla configurazione.",
+      "spiegazione": [
+        "I valori restano nella LUT finché il dispositivo non viene riconfigurato. La SRAM concettualmente è un elemento sequenziale, ma per il progettista la LUT è combinatoria."
+      ],
+      "fonti": [
+        {
+          "id": "da_verificare"
+        }
+      ]
+    },
+    "lut.mux": {
+      "livello": "L5",
+      "padre": "lut",
+      "titolo": "Il multiplexer di lettura",
+      "termine_en": "read multiplexer",
+      "in_breve": "Gli ingressi A1–A6 sono i bit di selezione che scelgono una delle 64 celle.",
+      "spiegazione": [
+        "La LUT è quindi anche un multiplexer 64:1 i cui dati sono i bit di configurazione."
+      ],
+      "fonti": [
+        {
+          "id": "claude"
+        }
+      ]
+    },
+    "lut.o5o6": {
+      "livello": "L5",
+      "padre": "lut",
+      "titolo": "Le due LUT a 5 ingressi e le uscite O5 e O6",
+      "termine_en": "dual LUT5, O5 and O6",
+      "in_breve": "A6 sceglie quale metà mandare su O6; O5 porta l'uscita della LUT a 5 ingressi inferiore.",
+      "spiegazione": [
+        "Le due LUT a 5 ingressi condividono gli ingressi I0–I4; il sesto ingresso comanda il multiplexer che produce O6."
+      ],
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 21
+        }
+      ]
+    },
+    "lut.rom": {
+      "livello": "L5",
+      "padre": "lut",
+      "titolo": "La LUT come ROM",
+      "termine_en": "ROM",
+      "in_breve": "Ogni LUT, anche nelle SLICEL, è una ROM da 64 × 1 bit; quattro LUT fanno una ROM da 256 × 1.",
+      "spiegazione": [
+        "Una ROM (Read-Only Memory) si legge soltanto: il contenuto si scrive alla configurazione e cambia solo riconfigurando il dispositivo."
+      ],
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 34
+        }
+      ]
+    },
+    "lut.distram": {
+      "livello": "L5",
+      "padre": "lut",
+      "titolo": "La LUT come RAM distribuita (solo SLICEM)",
+      "termine_en": "distributed RAM",
+      "in_breve": "La LUT diventa una RAM: scrittura sincrona sul fronte del clock, lettura asincrona.",
+      "spiegazione": [
+        "Le LUT delle SLICEM possono diventare una RAM con scrittura sincrona, che offre una quantità moderata di memoria in qualsiasi punto del percorso dei dati. La scrittura richiede un fronte del clock e avviene quando il segnale di abilitazione alla scrittura (WE) è alto; la lettura è asincrona.",
+        "Il primo numero di una configurazione è quante parole contiene la memoria, il secondo quanti bit ha ogni parola: 64 × 1 occupa una LUT, 128 × 1 due, 256 × 1 quattro. Conviene per la vicinanza: sta accanto alla logica che la usa, mentre la block RAM è un blocco separato e la RAM esterna è fuori dal chip."
+      ],
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 23
+        },
+        {
+          "id": "ug474",
+          "pagina": 24
+        },
+        {
+          "id": "ug474",
+          "pagina": 34
+        }
+      ],
+      "interazione": "sim_distram"
+    },
+    "lut.srl": {
+      "livello": "L5",
+      "padre": "lut",
+      "titolo": "La LUT come shift register (solo SLICEM)",
+      "termine_en": "shift register (SRL32)",
+      "in_breve": "La LUT diventa uno shift register da 32 bit, senza usare i flip-flop: ritarda un dato da 1 a 32 cicli.",
+      "spiegazione": [
+        "Uno shift register è una fila di elementi di memoria da un bit collegati in catena: a ogni fronte del clock ogni bit passa alla posizione successiva e in testa entra un bit nuovo, quindi un dato esce dopo tanti cicli quante sono le posizioni.",
+        "La lunghezza si sceglie con un indirizzo di 5 bit, perché 2^5 = 32; le quattro LUT di una SLICEM in cascata arrivano a 128 cicli."
+      ],
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 34
+        }
+      ],
+      "interazione": "sim_srl"
+    },
+    "bram": {
+      "livello": "laterale",
+      "padre": "regione",
+      "titolo": "La block RAM",
+      "termine_en": "block RAM",
+      "in_breve": "Un blocco di memoria da 36 Kb a doppia porta, già realizzato nel silicio.",
+      "spiegazione": [
+        "Ogni block RAM da 36 Kb contiene due RAM da 18 Kb controllate in modo indipendente, e ha due porte, A e B, completamente indipendenti, che condividono solo i dati memorizzati. Ogni porta ha il suo clock, e lettura e scrittura sono sincrone: richiedono un fronte del clock.",
+        "Se le due porte accedono allo stesso indirizzo nello stesso ciclo c'è una collisione; se entrambe scrivono dati diversi, la cella contiene un valore non determinato. Non c'è nessun danno fisico, ma il dato non è affidabile.",
+        "Quando una porta scrive, l'uscita della stessa porta può mostrare il dato appena scritto (WRITE_FIRST), il dato vecchio (READ_FIRST) oppure restare com'era (NO_CHANGE, il modo che consuma meno).",
+        "Le larghezze 9, 18, 36 e 72 bit includono un bit in più per ogni byte, che può contenere parità o correzione d'errore oppure fare da bit di dato. Ogni block RAM da 36 Kb ha anche un blocco di correzione d'errore (ECC) che rileva errori singoli e doppi in lettura e corregge quelli singoli, e può funzionare come FIFO."
+      ],
+      "numeri": [
+        {
+          "voce": "Block RAM nell'XC7A100T",
+          "valore": "135 da 36 Kb (270 da 18 Kb)",
+          "fonte": "ds180",
+          "pagina": 3
+        },
+        {
+          "voce": "Configurazioni di una porta",
+          "valore": "32K × 1, 16K × 2, 8K × 4, 4K × 9, 2K × 18, 1K × 36, 512 × 72",
+          "fonte": "da_verificare"
+        }
+      ],
+      "errore_comune": "Scrivere dalle due porte allo stesso indirizzo nello stesso ciclo: il risultato non è determinato.",
+      "fonti": [
+        {
+          "id": "ug473",
+          "pagina": 14
+        },
+        {
+          "id": "ug473",
+          "pagina": 16
+        },
+        {
+          "id": "ug473",
+          "pagina": 17
+        },
+        {
+          "id": "ug473",
+          "pagina": 19
+        },
+        {
+          "id": "ug473",
+          "pagina": 20
+        },
+        {
+          "id": "ug473",
+          "pagina": 25
+        }
+      ],
+      "interazione": "sim_bram"
+    },
+    "dsp": {
+      "livello": "laterale",
+      "padre": "regione",
+      "titolo": "La slice DSP (DSP48E1)",
+      "termine_en": "DSP48E1 slice",
+      "in_breve": "Un circuito aritmetico già realizzato nel silicio, specializzato nel moltiplicare e accumulare.",
+      "spiegazione": [
+        "Ogni slice DSP contiene un pre-sommatore da 25 bit, un moltiplicatore 25 × 18, un sommatore e un accumulatore a 48 bit; all'uscita c'è un rilevatore di configurazioni (pattern detector), utile per esempio all'arrotondamento.",
+        "Le funzioni tipiche sono la moltiplicazione, la moltiplicazione con accumulo (MACC), la moltiplicazione con somma e la somma a tre ingressi. Nella moltiplicazione con accumulo il risultato si somma a ogni ciclo al totale precedente, P ← P + A × B (formula di Claude che riassume l'operazione). Servono dove si fanno molte somme di prodotti: filtri digitali, elaborazione di audio e video, reti neurali.",
+        "Due slice DSP e la loro interconnessione dedicata formano un tile; i tile sono impilati in colonna e collegati fra loro da percorsi di cascata, usati per esempio nei filtri FIR."
+      ],
+      "numeri": [
+        {
+          "voce": "DSP nell'XC7A100T",
+          "valore": "240",
+          "fonte": "ds180",
+          "pagina": 3
+        },
+        {
+          "voce": "DSP per colonna in una regione",
+          "valore": "20",
+          "fonte": "ug472",
+          "pagina": 16
+        }
+      ],
+      "fonti": [
+        {
+          "id": "ds180",
+          "pagina": 1
+        },
+        {
+          "id": "ds180",
+          "pagina": 3
+        },
+        {
+          "id": "ug479",
+          "pagina": 14
+        },
+        {
+          "id": "ug479",
+          "pagina": 18
+        },
+        {
+          "id": "ug479",
+          "pagina": 19
+        },
+        {
+          "id": "ug479",
+          "pagina": 20
+        },
+        {
+          "id": "claude"
+        }
+      ]
+    },
+    "iob": {
+      "livello": "laterale",
+      "padre": "chip",
+      "titolo": "Il blocco di ingresso e uscita (IOB) e il funzionamento a tre stati",
+      "termine_en": "Input/Output Block, 3-state",
+      "in_breve": "Collega un pin alla logica interna; supporta il flusso bidirezionale e l'alta impedenza.",
+      "spiegazione": [
+        "Gli IOB controllano il flusso dei dati fra i pin di I/O e la logica interna. Ogni IOB supporta un flusso bidirezionale e il funzionamento a tre stati: oltre a 0 e 1, l'uscita può andare in alta impedenza ('Z' in VHDL), cioè scollegarsi elettricamente dal filo.",
+        "Così lo stesso pin può anche ricevere: quando l'FPGA ascolta, mette la propria uscita in alta impedenza. Se invece due dispositivi pilotano lo stesso filo con valori opposti, il risultato è indefinito ('X')."
+      ],
+      "fonti": [
+        {
+          "id": "da_verificare"
+        }
+      ],
+      "interazione": "sim_tristate"
+    },
+    "cmt": {
+      "livello": "laterale",
+      "padre": "regione",
+      "titolo": "La gestione del clock (CMT, MMCM, PLL) e la rete di clock",
+      "termine_en": "clock management tile",
+      "in_breve": "Dal clock della board generano altri clock: moltiplicano o dividono la frequenza, spostano la fase, filtrano il jitter.",
+      "spiegazione": [
+        "Gran parte della circuiteria di un FPGA è sincrona: il clock deve arrivare a tutti i registri nello stesso istante. Un filo non è ideale e su un percorso lungo il segnale arriva più tardi: la differenza fra gli istanti di arrivo dello stesso clock in punti diversi è lo skew. Il jitter è invece l'irregolarità del periodo. Per questo ci sono reti di clock globali e regionali dedicate.",
+        "Ogni CMT contiene un MMCM e un PLL, che realizzano sintesi di frequenza, compensazione dello skew e filtraggio del jitter; possono anche cambiare fase e duty cycle (la frazione del periodo in cui l'onda è alta). Si istanziano nel progetto con una procedura guidata di Vivado.",
+        "Per esempio, un divisore di frequenza si costruisce a mano con un contatore dei fronti del clock. Un clock generato dalla logica non va però collegato direttamente ai flip-flop, perché non viaggia sulle reti dedicate."
+      ],
+      "numeri": [
+        {
+          "voce": "CMT nell'XC7A100T",
+          "valore": "6",
+          "fonte": "ds180",
+          "pagina": 3
+        },
+        {
+          "voce": "Linee di clock globali",
+          "valore": "32",
+          "fonte": "da_verificare"
+        }
+      ],
+      "errore_comune": "Collegare un clock generato dalla logica (per esempio l'uscita di un divisore) direttamente all'ingresso di clock dei flip-flop.",
+      "fonti": [
+        {
+          "id": "ug472",
+          "pagina": 15
+        },
+        {
+          "id": "ug472",
+          "pagina": 16
+        }
+      ],
+      "interazione": "sim_clock"
+    },
+    "interconnessione": {
+      "livello": "laterale",
+      "padre": "chip",
+      "titolo": "L'interconnessione",
+      "termine_en": "interconnect (routing)",
+      "in_breve": "La rete programmabile di percorsi fra tutti gli elementi del chip, a cui ogni blocco accede con la sua switch matrix.",
+      "spiegazione": [
+        "I CLB formano una matrice regolare; ognuno è collegato a una switch matrix che dà accesso alle risorse generali di instradamento, che corrono in verticale e in orizzontale fra le righe e le colonne di CLB. Una switch matrix analoga collega DSP e block RAM. L'interconnessione è segmentata, e gli strumenti di place and route la sfruttano per ottenere le prestazioni migliori.",
+        "La maggior parte dell'interconnessione è trasparente al progettista; fra i tipi che può controllare direttamente ci sono le risorse di instradamento del clock."
+      ],
+      "fonti": [
+        {
+          "id": "ug474",
+          "pagina": 72
+        }
+      ],
+      "interazione": "sim_switch"
+    },
+    "configurazione": {
+      "livello": "laterale",
+      "padre": "chip",
+      "titolo": "La configurazione: bitstream, JTAG, flash",
+      "termine_en": "configuration",
+      "in_breve": "Il bitstream scrive tutti gli elementi di memoria di configurazione; si perde allo spegnimento e si ricarica dal PC o dalla flash.",
+      "spiegazione": [
+        "Il file di configurazione si chiama bitstream e programma tutti gli elementi di memoria di configurazione: per questo ha una dimensione fissa per ogni modello di FPGA, la stessa per una porta AND e per un processore. Contiene le tabelle di verità delle LUT, i contenuti della RAM distribuita e dei flip-flop e la configurazione della switch matrix.",
+        "I dati di configurazione stanno in latch CMOS, quindi si perdono quando il dispositivo si spegne: va riconfigurato a ogni accensione. Può caricarsi da solo da una memoria non volatile esterna, come la flash della board, o essere configurato da una sorgente esterna; ci sono un percorso seriale, che usa pochi pin, e uno parallelo, più veloce. L'interfaccia JTAG è sempre disponibile, qualunque sia il modo scelto.",
+        "Il JTAG è un protocollo nato per collaudare i circuiti attraverso una catena di boundary scan: una catena di flip-flop collegati a formare un lungo shift register, con multiplexer che scelgono l'ingresso normale durante il funzionamento o l'ingresso seriale durante il collaudo."
+      ],
+      "numeri": [
+        {
+          "voce": "Bitstream dell'XC7A100T",
+          "valore": "30 606 304 bit (circa 3,8 MB)",
+          "fonte": "ug470",
+          "pagina": 14
+        },
+        {
+          "voce": "Bitstream dell'XC7A50T",
+          "valore": "17 536 096 bit",
+          "fonte": "ug470",
+          "pagina": 14
+        },
+        {
+          "voce": "Bitstream dell'XC7A200T",
+          "valore": "77 845 216 bit",
+          "fonte": "ug470",
+          "pagina": 14
+        }
+      ],
+      "fonti": [
+        {
+          "id": "ug470",
+          "pagina": 11
+        },
+        {
+          "id": "ug470",
+          "pagina": 12
+        },
+        {
+          "id": "ug470",
+          "pagina": 14
+        }
+      ],
+      "interazione": "sim_jtag"
+    },
+    "flusso": {
+      "livello": "laterale",
+      "padre": null,
+      "titolo": "Il flusso di progetto in Vivado",
+      "termine_en": "design flow",
+      "in_breve": "Dal codice VHDL al chip programmato: progetto RTL, simulazione, vincoli, sintesi, implementazione, chiusura temporale, bitstream.",
+      "spiegazione": [
+        "Lo sviluppo RTL descrive il sistema con i suoi componenti (porte, multiplexer, sommatori, registri) e il modo in cui i dati si trasformano. Il VHDL si scrive con tre approcci: dataflow (espressioni logiche, il più vicino all'hardware), strutturale (interconnessione di componenti, anche gerarchica) e comportamentale (costrutti di livello più alto).",
+        "Scrivere VHDL comportamentale come se fosse C, con cicli for e while, funziona in simulazione ma non in sintesi: simulabile non significa sintetizzabile."
+      ],
+      "passi": [
+        {
+          "nome": "Progetto RTL",
+          "testo": "Si crea un progetto RTL in Vivado (File → Project → New → RTL Project); l'analisi RTL mostra la netlist logica e lo schema RTL.",
+          "fonte": "da_verificare"
+        },
+        {
+          "nome": "Simulazione logica",
+          "testo": "Verifica il funzionamento fornendo stimoli e osservando le uscite; può essere comportamentale e da sola non basta.",
+          "fonte": "da_verificare"
+        },
+        {
+          "nome": "Vincoli (XDC)",
+          "testo": "Vincoli fisici: posizione dei pin e delle celle. Vincoli temporali: requisiti di frequenza; senza, la sintesi ottimizza solo lunghezza dei collegamenti e congestione.",
+          "fonte": "da_verificare"
+        },
+        {
+          "nome": "Sintesi",
+          "testo": "Trasforma il progetto RTL nella netlist logica e inferisce gli elementi del dispositivo (flip-flop, multiplexer, memorie, moltiplicatori). Dice quali risorse servono, non quali esattamente; produce i report di area, ritardo e potenza e lo schema tecnologico.",
+          "fonte": "da_verificare"
+        },
+        {
+          "nome": "Implementazione",
+          "testo": "Opt Design, Power Opt Design (facoltativo), Place Design (assegna le celle a siti precisi, cioè slice con un nome X e Y), Phys Opt (facoltativo), Route Design (configura i collegamenti, cioè la switch matrix).",
+          "fonte": "da_verificare"
+        },
+        {
+          "nome": "Chiusura temporale e analisi",
+          "testo": "Si verifica che i vincoli siano rispettati e si correggono le violazioni; il vincolo principale è il tempo.",
+          "fonte": "da_verificare"
+        },
+        {
+          "nome": "Bitstream e programmazione",
+          "testo": "Si genera il bitstream e con l'Hardware Manager si programma l'FPGA.",
+          "fonte": "da_verificare"
+        }
+      ],
+      "fonti": [
+        {
+          "id": "da_verificare"
+        }
+      ],
+      "interazione": "sim_flow"
+    }
+  }
+}
