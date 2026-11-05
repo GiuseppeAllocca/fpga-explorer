@@ -44,20 +44,15 @@ src/styles/app.css       styles and themes
 tests/                   data-integrity tests
 ```
 
-## Roadmap
-
-- [ ] Verify every data point against the official AMD/Digilent documents (nodes marked "Da verificare")
-- [ ] Split `main.js` into modules (model / panel / 2D renderer) and migrate to TypeScript
-- [ ] Logic simulations, starting from the LUT (truth table → SRAM cells → read multiplexer)
-- [ ] End-to-end tests (Playwright) and an accessibility audit
-- [ ] Touch and cross-browser testing (Safari, Chrome, Firefox)
-- [ ] English translation
-
 ## How it was made
 
-Built with AI assistance (LLM coding agents) under the author's direction: the author defined the scope,
-the structure and the acceptance criteria, and reviews the output. The educational content is compiled from public
-documentation and is being verified source by source (see the roadmap). Corrections are welcome via issues.
+Built with AI assistance (LLM coding agents) under the author's direction: the author defined the scope, the structure
+and the acceptance criteria, and reviews the output.
+
+The educational content is based on the author's own study notes (not published in this repository): an AI assistant
+extracted definitions and explanations from them and compiled them with public AMD and Digilent documentation. The author
+is reviewing the notes and the content against them, and checking every claim against the cited sources; some items are
+still marked "Da verificare". Corrections are welcome via issues.
 
 ## License
 
