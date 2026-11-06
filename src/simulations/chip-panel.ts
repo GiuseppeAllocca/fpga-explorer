@@ -1,62 +1,62 @@
+import {chipFactories, type ChipId, type ChipStates, type PlaybackState} from './states';
+import type {ChipUI, ChipSnapshots} from './types';
+
 import {bramEdge, tristateAnd, resolvePin, routeBetween, divider, shiftBoundary, bitstreamBits} from './chip-logic.ts';
 
-const ids = ['sim_bram', 'sim_tristate', 'sim_switch', 'sim_clock', 'sim_jtag', 'sim_flow'];
+const ids: ChipId[] = ['sim_bram', 'sim_tristate', 'sim_switch', 'sim_clock', 'sim_jtag', 'sim_flow'];
 const NS = 'http://www.w3.org/2000/svg';
 const values = ['0', '1', 'Z'];
 
-export function creaPannelloChip(ui) {
+export function creaPannelloChip(ui: ChipUI) {
   const {dati, element, button, toggle, select, signal, commit, stop, animate} = ui;
   const emit = () => ui.emit?.();
-  const halt = s => {stop();s.playing = false;s.loading = false;};
-  const row = parent => element('div', null, parent, 'sim-inputs');
-  const signals = parent => element('div', null, parent, 'sim-signals');
-  const initial = id => ({
-    sim_bram: () => ({cells: Array(16).fill(0), ports: [0, 1].map(() => ({address: 0, data: 0, we: 0, mode: 'WRITE_FIRST', output: 0})), outputs: [0, 0], collision: null}),
-    sim_tristate: () => ({a: 0, b: 0, en: 1, fpga: 'Z', external: 'Z'}),
-    sim_switch: () => ({routes: [], source: null}),
-    sim_clock: () => ({mode: 'skew', dedicated: false, n: 1, duty: 50, phase: 0, playing: false}),
-    sim_jtag: () => ({test: false, cells: Array(8).fill(0), tdi: 0, tdo: 0, read: [], progress: 0, done: false, bits: bitstreamBits(dati), loading: false}),
-    sim_flow: () => ({step: 0, route: false}),
-  }[id]());
+  const halt = (s: PlaybackState) => {stop();s.playing = false;s.loading = false;};
+  const row = (parent: Element) => element('div', null, parent, 'sim-inputs');
+  const signals = (parent: Element) => element('div', null, parent, 'sim-signals');
+  const factories = chipFactories(dati);
+  // The key selects the factory and its corresponding state type.
+  const initial = <K extends ChipId>(id: K): ChipStates[K] => factories[id]() as ChipStates[K];
 
-  function snapshot(id, s) {
-    if (id === 'sim_tristate') return {id, ...s, y: tristateAnd(s.a, s.b, s.en), wire: resolvePin(s.fpga, s.external)};
-    if (id === 'sim_bram') return {id, ...s, cells: [...s.cells], ports: s.ports.map(p => ({...p})), outputs: [...s.outputs]};
-    if (id === 'sim_switch') return {id, routes: s.routes.map(r => [...r]), source: s.source};
-    if (id === 'sim_jtag') return {id, ...s, cells: [...s.cells], read: [...s.read]};
-    return {id, ...s};
+  function snapshot<K extends ChipId>(id: K, state: ChipStates[K]): ChipSnapshots[K];
+  function snapshot(id: ChipId, state: ChipStates[ChipId]): ChipSnapshots[ChipId] {
+    const s = state;
+    if (id === 'sim_tristate') {const s = state as ChipStates['sim_tristate'];return {id, ...s, y: tristateAnd(s.a, s.b, s.en), wire: resolvePin(s.fpga, s.external)} as ChipSnapshots[ChipId];}
+    if (id === 'sim_bram') {const s = state as ChipStates['sim_bram'];return {id, ...s, cells: [...s.cells], ports: s.ports.map(p => ({...p})), outputs: [...s.outputs]} as ChipSnapshots[ChipId];}
+    if (id === 'sim_switch') {const s = state as ChipStates['sim_switch'];return {id, routes: s.routes.map(r => [...r]), source: s.source} as ChipSnapshots[ChipId];}
+    if (id === 'sim_jtag') {const s = state as ChipStates['sim_jtag'];return {id, ...s, cells: [...s.cells], read: [...s.read]} as ChipSnapshots[ChipId];}
+    return {id, ...s} as ChipSnapshots[ChipId];
   }
 
-  function node(tag, attributes = {}, parent) {
+  function node<K extends keyof SVGElementTagNameMap>(tag: K, attributes: Record<string, string | number> = {}, parent?: Element) {
     const e = document.createElementNS(NS, tag);
     for (const [key, value] of Object.entries(attributes)) e.setAttribute(key, String(value));
     parent?.append(e);return e;
   }
-  function diagram(parent, height, name, width = 600) {
+  function diagram(parent: Element, height: number, name: string, width = 600) {
     const scroll = element('div', null, parent, 'chip-diagram-scroll');
     scroll.dataset.scroll = 'chip-' + name;
     scroll.tabIndex=0;scroll.setAttribute('role','region');scroll.setAttribute('aria-label',name);
     return node('svg', {viewBox: `0 0 ${width} ${height}`, class: 'chip-diagram', role: 'img', 'aria-label': name}, scroll);
   }
-  function text(g, value, x, y, className = '') {
+  function text(g: Element, value: string | number, x: number, y: number, className = '') {
     const t = node('text', {x, y, 'text-anchor': 'middle', 'dominant-baseline': 'middle', class: className}, g);t.textContent = String(value);return t;
   }
-  function box(g, x, y, width, height, label, className = '') {
+  function box(g: Element, x: number, y: number, width: number, height: number, label: string | number | undefined, className = '') {
     node('rect', {x, y, width, height, rx: 6, class: 'chip-box ' + className}, g);
     if (label !== undefined) text(g, label, x + width / 2, y + height / 2);return g;
   }
-  function wire(g, x1, y1, x2, y2, className = '') {
+  function wire(g: Element, x1: number, y1: number, x2: number, y2: number, className = '') {
     return node('path', {d: `M${x1} ${y1} L${x2} ${y2}`, class: 'chip-wire ' + className}, g);
   }
-  function arrow(g, x1, y1, x2, y2, className = '') {
+  function arrow(g: Element, x1: number, y1: number, x2: number, y2: number, className = '') {
     wire(g, x1, y1, x2, y2, className);
     const a = Math.atan2(y2 - y1, x2 - x1);
     node('path', {d: `M${x2 - 10 * Math.cos(a - .45)} ${y2 - 10 * Math.sin(a - .45)} L${x2} ${y2} L${x2 - 10 * Math.cos(a + .45)} ${y2 - 10 * Math.sin(a + .45)}`, class: 'chip-wire ' + className}, g);
   }
-  function setSignal(output, name, value) {
-    output.querySelector('strong').textContent = String(value);output.setAttribute('aria-label', name + ' · ' + value);
+  function setSignal(output: HTMLOutputElement, name: string, value: string | number) {
+    output.querySelector('strong')!.textContent = String(value);output.setAttribute('aria-label', name + ' · ' + value);
   }
-  function numeric(name, value, min, max, key, action, parent) {
+  function numeric(name: string, value: number, min: number, max: number, key: string, action: (value: number) => void, parent: Element) {
     const label = element('label', null, parent, 'sim-field');element('span', name, label);
     const input = element('input', null, label);input.type = 'number';input.min = String(min);input.max = String(max);input.step = '1';input.value = String(value);input.dataset.control = key;
     input.required = true;const hint = element('small', min + '–' + max, label);hint.id = key + '-range';input.setAttribute('aria-describedby', hint.id);
@@ -65,18 +65,18 @@ export function creaPannelloChip(ui) {
       if (valid) {action(Number(input.value));emit();}
     });return input;
   }
-  function range(name, value, min, max, step, key, action, parent) {
+  function range(name: string, value: number, min: number, max: number, step: number, key: string, action: (value: number) => void, parent: Element) {
     const label = element('label', null, parent, 'sim-field');element('span', name, label);
     const input = element('input', null, label);input.type = 'range';input.min = String(min);input.max = String(max);input.step = String(step);input.value = String(value);input.dataset.control = key;
     input.addEventListener('input', () => {action(Number(input.value));emit();});return input;
   }
-  function validNumbers(parent) {
-    return [...parent.querySelectorAll('input[type="number"]')].every(input => input.value !== '' && input.reportValidity());
+  function validNumbers(parent: Element) {
+    return [...parent.querySelectorAll<HTMLInputElement>('input[type="number"]')].every(input => input.value !== '' && input.reportValidity());
   }
 
-  function bram(s, parent) {
+  function bram(s: ChipStates['sim_bram'], parent: HTMLElement) {
     element('p', 'memoria ridotta a 16 parole per la visualizzazione', parent, 'sim-note');
-    const highlight = () => parent.querySelectorAll('td[data-address]').forEach(e => e.classList.toggle('chip-memory-current', s.ports.some(p => p.address === Number(e.dataset.address))));
+    const highlight = () => parent.querySelectorAll<HTMLTableCellElement>('td[data-address]').forEach(e => e.classList.toggle('chip-memory-current', s.ports.some(p => p.address === Number(e.dataset.address))));
     const ports = element('div', null, parent, 'chip-ports');
     s.ports.forEach((p, i) => {
       const port = element('section', null, ports, 'sim-mini');element('h3', i ? 'Porta B' : 'Porta A', port);
@@ -106,9 +106,9 @@ export function creaPannelloChip(ui) {
     });
   }
 
-  function tristate(s, parent) {
+  function tristate(s: ChipStates['sim_tristate'], parent: HTMLElement) {
     const inputs = row(parent);
-    [['A', 'a'], ['B', 'b'], ['EN', 'en']].forEach(([name, key]) => toggle(name, s[key], 'tri-' + key, () => {halt(s);s[key] ^= 1;}, inputs));
+    ([['A', 'a'], ['B', 'b'], ['EN', 'en']] as const).forEach(([name, key]) => toggle(name, s[key], 'tri-' + key, () => {halt(s);s[key] ^= 1;}, inputs));
     const y = tristateAnd(s.a, s.b, s.en);signal('Y', y, parent);
     const logic = diagram(parent, 220, 'AND · EN · Y');
     box(logic, 110, 65, 140, 100, 'AND');text(logic, 'A · ' + s.a, 48, 85);text(logic, 'B · ' + s.b, 48, 145);wire(logic, 80, 85, 110, 85);wire(logic, 80, 145, 110, 145);
@@ -126,7 +126,7 @@ export function creaPannelloChip(ui) {
     values.forEach(a => {const tr = element('tr', null, body);element('th', a, tr).scope = 'row';values.forEach(b => {const td = element('td', resolvePin(a, b), tr);if (s.fpga === a && s.external === b) td.setAttribute('aria-current', 'true');});});
   }
 
-  function scegliSwitch(s, index, key = 'route-' + index) {
+  function scegliSwitch(s: ChipStates['sim_switch'], index: number, key: string | null = 'route-' + index) {
     halt(s);
     if (s.source === null) s.source = index;
     else {
@@ -135,7 +135,7 @@ export function creaPannelloChip(ui) {
     }
     commit(key);
   }
-  function routing(s, parent) {
+  function routing(s: ChipStates['sim_switch'], parent: HTMLElement) {
     const paths = signals(parent);signal('switch matrix attraversate', new Set(s.routes.flat()).size, paths);
     button('Cancella percorsi', 'routes-clear', () => {halt(s);s.routes = [];s.source = null;commit('routes-clear');}, parent);
     const scroll = element('div', null, parent, 'sim-scroll');scroll.dataset.scroll = 'chip-routing';
@@ -166,7 +166,7 @@ export function creaPannelloChip(ui) {
     element('p', 'schema: le linee reali sono segmentate e di lunghezze diverse', parent, 'sim-note');
   }
 
-  function wave(g, y, duty = 50, cycles = 4, delay = 0, className = '') {
+  function wave(g: Element, y: number, duty = 50, cycles = 4, delay = 0, className = '') {
     const left = 75, width = 490, period = width / cycles;let d = `M${left} ${y + 28}`;
     for (let i = 0; i < cycles; i++) {
       const start = left + i * period + delay, end = Math.min(left + width, start + period * duty / 100), tail = Math.min(left + width, left + (i + 1) * period + delay);
@@ -174,7 +174,7 @@ export function creaPannelloChip(ui) {
     }
     node('path', {d, class: 'chip-wire chip-wave ' + className}, g);
   }
-  function clockVisual(s, host) {
+  function clockVisual(s: ChipStates['sim_clock'], host: HTMLElement) {
     host.replaceChildren();
     const g = diagram(host, s.mode === 'skew' ? 370 : 270, 'CLK');
     if (s.mode === 'skew') {
@@ -191,7 +191,7 @@ export function creaPannelloChip(ui) {
       text(g, 'Duty cycle · ' + s.duty + '%', 300, 35);text(g, 'CLK', 30, 110);wave(g, 95, s.duty, 3, 0, 'active');
     }
   }
-  function clock(s, parent) {
+  function clock(s: ChipStates['sim_clock'], parent: HTMLElement) {
     const tabs = row(parent);
     [['skew', 'Skew'], ['divider', 'Divisore di frequenza'], ['duty', 'Duty cycle']].forEach(([mode, name]) => button(name, 'clock-mode-' + mode, () => {halt(s);s.mode = mode;s.phase = 0;commit('clock-mode-' + mode);}, tabs, mode === s.mode));
     if (s.mode === 'skew') {
@@ -202,7 +202,7 @@ export function creaPannelloChip(ui) {
     }
     const visual = element('div', null, parent);
     if (s.mode === 'divider') {
-      let slider;
+      let slider: HTMLInputElement | undefined;
       const outputs = signals(parent);signal('CLK', '100 MHz', outputs);const result = divider(s.n);const period = signal('periodo', result.periodText, outputs), frequency = signal('frequenza', result.frequencyText, outputs);
       const refresh = () => {const r = divider(s.n);setSignal(period, 'periodo', r.periodText);setSignal(frequency, 'frequenza', r.frequencyText);clockVisual(s, visual);slider?.setAttribute('aria-valuetext', 'N · ' + s.n);};
       const n = numeric('N', s.n, 1, 1000000, 'clock-n', value => {halt(s);s.n = value;if (slider) slider.value = String(Math.log10(value));refresh();}, parent);
@@ -214,7 +214,7 @@ export function creaPannelloChip(ui) {
     clockVisual(s, visual);
   }
 
-  function boundaryVisual(s, parent) {
+  function boundaryVisual(s: ChipStates['sim_jtag'], parent: HTMLElement) {
     const g = diagram(parent, 365, 'JTAG · TDI · TDO');box(g, 160, 50, 280, 250, 'ARTIX-7');
     const coords = [[185, 70], [285, 70], [410, 70], [420, 160], [410, 280], [300, 280], [180, 280], [180, 175]];
     coords.forEach(([x, y], i) => {
@@ -225,13 +225,13 @@ export function creaPannelloChip(ui) {
     });
     arrow(g, 35, 70, 165, 70, s.test ? 'active' : '');text(g, 'TDI · ' + s.tdi, 80, 35);arrow(g, 160, 175, 40, 175, s.test ? 'active' : '');text(g, 'TDO · ' + s.tdo, 75, 215);text(g, 'TCK', 300, 340);wire(g, 300, 320, 300, 300);
   }
-  function loadBitstream(s, key) {
+  function loadBitstream(s: ChipStates['sim_jtag'], key: string) {
     halt(s);s.progress = 0;s.done = false;s.loading = true;
     animate({key, interval: 100, advance: () => {s.progress = Math.min(100, s.progress + 5);s.done = s.progress === 100;if (s.done) s.loading = false;return s.done;}, finish: () => {s.progress = 100;s.done = true;s.loading = false;}});
   }
-  function jtag(s, parent) {
+  function jtag(s: ChipStates['sim_jtag'], parent: HTMLElement) {
     const modes = row(parent);
-    [['Funzionamento normale', false], ['Collaudo', true]].forEach(([name, test]) => button(name, 'jtag-mode-' + test, () => {halt(s);s.test = test;commit('jtag-mode-' + test);}, modes, s.test === test));
+    ([['Funzionamento normale', false], ['Collaudo', true]] as const).forEach(([name, test]) => button(name, 'jtag-mode-' + test, () => {halt(s);s.test = test;commit('jtag-mode-' + test);}, modes, s.test === test));
     const controls = row(parent);const tdi = toggle('TDI', s.tdi, 'jtag-tdi', () => {halt(s);s.tdi ^= 1;}, controls);tdi.disabled = !s.test;
     const edge = button('Fronte di TCK', 'jtag-tck', () => {halt(s);const r = shiftBoundary(s.cells, s.tdi);s.cells = r.cells;s.tdo = r.tdo;s.read.push(r.tdo);commit('jtag-tck');}, controls);edge.disabled = !s.test;
     boundaryVisual(s, parent);signal('letti da TDO', s.read.length ? s.read.join(' ') : '—', parent);
@@ -245,7 +245,7 @@ export function creaPannelloChip(ui) {
     button('Riaccendi dalla flash', 'bitstream-flash', () => loadBitstream(s, 'bitstream-flash'), load);
   }
 
-  function flowVisual(s, parent) {
+  function flowVisual(s: ChipStates['sim_flow'], parent: HTMLElement) {
     const g = diagram(parent, 290, dati.nodi.flusso.passi[s.step].nome);
     if (s.step === 0) {box(g, 220, 75, 180, 110, 'sommatore');arrow(g, 60, 100, 220, 100);arrow(g, 60, 160, 220, 160);arrow(g, 400, 130, 550, 130);text(g, 'A', 40, 100);text(g, 'B', 40, 160);text(g, 'Y', 565, 130);text(g, 'codice VHDL', 300, 235);}
     else if (s.step === 1) {text(g, 'CLK', 30, 70);wave(g, 55, 50, 4);text(g, 'D', 30, 145);wave(g, 130, 25, 3);text(g, 'Q', 30, 220);wave(g, 205, 50, 2);}
@@ -255,7 +255,7 @@ export function creaPannelloChip(ui) {
     else if (s.step === 5) {box(g, 70, 85, 100, 100, 'FF');box(g, 430, 85, 100, 100, 'FF');arrow(g, 170, 135, 430, 135, 'active');text(g, 'vincolo rispettato?', 300, 235);}
     else {box(g, 80, 85, 360, 65, undefined, 'chip-complete');text(g, 'Bitstream', 260, 117);node('circle', {cx: 510, cy: 117, r: 22, class: 'chip-led-done'}, g);text(g, 'DONE', 510, 175);text(g, 'ARTIX-7', 300, 235);}
   }
-  function flow(s, parent) {
+  function flow(s: ChipStates['sim_flow'], parent: HTMLElement) {
     const steps = dati.nodi.flusso.passi;
     const scroll = element('div', null, parent, 'sim-scroll');scroll.dataset.scroll = 'chip-flow';const stepper = element('ol', null, scroll, 'chip-stepper');
     steps.forEach((step, i) => {const li = element('li', null, stepper);const b = button(step.nome, 'flow-' + i, () => scegliPasso(s, i), li, s.step === i);if (s.step === i) b.setAttribute('aria-current', 'step');});
@@ -266,14 +266,15 @@ export function creaPannelloChip(ui) {
     flowVisual(s, parent);
   }
 
-  function scegliPasso(s, index, key = 'flow-' + index) {
+  function scegliPasso(s: ChipStates['sim_flow'], index: number, key: string | null = 'flow-' + index) {
     if (!Number.isInteger(index) || index < 0 || index >= dati.nodi.flusso.passi.length) return;
     halt(s);s.step = index;s.route = false;commit(key);
   }
 
-  function paint(id, s, parent) {
+  function paint<K extends ChipId>(id: K, s: ChipStates[K], parent: HTMLElement) {
     parent.classList.add('chip-simulation');
-    ({sim_bram: bram, sim_tristate: tristate, sim_switch: routing, sim_clock: clock, sim_jtag: jtag, sim_flow: flow})[id](s, parent);
+    const painters: {[K in ChipId]: (state: ChipStates[K], parent: HTMLElement) => void} = {sim_bram: bram, sim_tristate: tristate, sim_switch: routing, sim_clock: clock, sim_jtag: jtag, sim_flow: flow};
+    painters[id](s, parent);
   }
   return {ids, initial, snapshot, paint, scegliSwitch, scegliPasso};
 }

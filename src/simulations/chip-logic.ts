@@ -59,7 +59,7 @@ export function divider(n: number) {
 
 export function shiftBoundary(cells: number[], tdi: number) {
   if (!cells.length) throw RangeError('La catena deve contenere almeno una cella');
-  return {cells: [Number(Boolean(tdi)), ...cells.slice(0, -1)], tdo: cells.at(-1)};
+  return {cells: [Number(Boolean(tdi)), ...cells.slice(0, -1)], tdo: cells.at(-1)!};
 }
 
 export function bitstreamBits(dati: FpgaData) {
