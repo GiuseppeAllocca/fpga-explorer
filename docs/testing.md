@@ -9,7 +9,10 @@ Version 0.4. This page separates what was actually run from what is still open. 
 - **Build and dependencies:** production build succeeds; `npm audit --audit-level=high` reports no vulnerabilities at check time.
 - **Accessibility (axe-core 4.14, local tool, not a dependency):** 96 combinations of simulation, view, theme and viewport (1280×800, 360×800).
   Only one rule fails, `label-content-name-mismatch` (WCAG 2.5.3, accessible name must contain the visible text) on SVG controls,
-  in 42 of 96 cases. A fix is in the code (`nomeConTesto` in `src/render2d/index.ts`) and has **not** been re-audited with axe yet.
+  in 42 of 96 cases. The fix (`nomeConTesto` in `src/render2d/index.ts`) was re-audited on the production build with axe-core 4.14:
+  0 violations of that rule and of five related rules (`color-contrast`, `aria-allowed-role`, `aria-valid-attr-value`, `button-name`,
+  `scrollable-region-focusable`) in 30 runs (2D: 8 nodes × Explanation/Try tabs; 3D: 7 nodes × the same tabs; one theme, desktop viewport).
+  The full 96-combination audit was not repeated.
   Colour contrast is reported as "incomplete" by axe in all cases and needs a manual check.
 - **Colour pairs:** 36 CSS pairs checked against the declared thresholds.
 - **Layout:** 48 checks on two representative nodes, five viewport sizes plus a narrow window, both themes and views:
@@ -35,7 +38,7 @@ Unchecked items remain unverified and are not acceptance claims.
 - [ ] Extend the automated privacy guard to TypeScript and verify that it rejects a prohibited term in a TypeScript source. The existing test remains unchanged under the refactor's import-only test constraint; the current sources passed a separate manual scan.
 - [x] Run a representative production UI regression for all twelve simulations in both views, with reset, playback completion and invalid-input cases as detailed above. Exhaustive interaction coverage remains outside this check.
 - [ ] Test a physical tablet: Chrome and Samsung Internet, both orientations, touch, pinch, pan, double tap, stylus; measure frame rate during pan and zoom.
-- [ ] Re-run axe after the label fix, check contrast manually, and test screen readers and voice control.
+- [ ] Repeat the full axe audit (both themes, narrow viewport), check contrast manually, and test screen readers and voice control.
 - [ ] Run every simulation in Safari, Chrome and Firefox on desktop.
 - [ ] Run the GitHub workflow after a separately authorized integration. Local checks do not establish the remote CI result.
 

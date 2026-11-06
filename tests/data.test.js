@@ -53,7 +53,7 @@ describe('nessun dato personale', () => {
 
   it('nessun file contiene termini vietati', () => {
     for (const p of file(radice)) {
-      if (!/\.(js|json|html|css|md|yml|yaml|txt)$|LICENSE/.test(p)) continue;
+      if (!/\.(js|ts|json|html|css|md|yml|yaml|txt)$|LICENSE/.test(p)) continue;
       expect(readFileSync(p, 'utf8'), p).not.toMatch(vietati);
     }
   });
