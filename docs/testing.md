@@ -22,14 +22,21 @@ Version 0.4. This page separates what was actually run from what is still open. 
 ## TypeScript refactor regression checks
 
 - All 72 existing tests pass; only their import extensions changed. Strict typecheck, production build and dependency audit pass.
-- Production browser checks in both views: Board-to-LUT navigation, LUT XOR, BRAM write, theme changes and view switching with node/variant preservation; no console errors observed.
+- Initial production browser checks in both views: Board-to-LUT navigation, LUT XOR, BRAM write, theme changes and view switching with node/variant preservation; no console errors observed.
 - At 1280×800, all 13 roots match the baseline DOM in each view (SVG/panel in 2D; labels/panel, scene nodes and mesh counts in 3D). The two slice screenshots match byte for byte.
 - Data, styles and CSP configuration are unchanged. Runtime imports have no cycles. The existing privacy test does not scan TypeScript; the same term check was separately applied to every TypeScript source.
-- These checks do not re-audit accessibility, exercise every simulation in a browser or establish equivalence for every viewport, theme and input sequence.
+- Additional production UI regression at 372×718: all twelve simulations in both views (24 cases), with reset in every case. Checked LUT/MUX outputs, FF/latch traces, RAM writes, marked shifts, carry sums, BRAM writes, pin conflicts, routing, clock division, JTAG/bitstream and design-flow steps. Playback completion passed for FF/latch, carry, clock and bitstream; invalid input was checked for carry, BRAM and clock. No console errors were observed.
+- These checks do not re-audit accessibility or establish equivalence for every viewport, theme, control and input sequence.
 
-## Still open
+## Pending checks
 
-- Physical tablet: Chrome and Samsung Internet, both orientations, touch, pinch, pan, double tap, stylus; frame rate during pan and zoom.
-- Screen readers and voice control; manual contrast checks; re-run of the axe audit after the label fix.
-- Full pass of every simulation in Safari, and in Chrome and Firefox on desktop.
-- Direct opening from `file://` (the app needs to be served over HTTP).
+Unchecked items remain unverified and are not acceptance claims.
+
+- [ ] Extend the automated privacy guard to TypeScript and verify that it rejects a prohibited term in a TypeScript source. The existing test remains unchanged under the refactor's import-only test constraint; the current sources passed a separate manual scan.
+- [x] Run a representative production UI regression for all twelve simulations in both views, with reset, playback completion and invalid-input cases as detailed above. Exhaustive interaction coverage remains outside this check.
+- [ ] Test a physical tablet: Chrome and Samsung Internet, both orientations, touch, pinch, pan, double tap, stylus; measure frame rate during pan and zoom.
+- [ ] Re-run axe after the label fix, check contrast manually, and test screen readers and voice control.
+- [ ] Run every simulation in Safari, Chrome and Firefox on desktop.
+- [ ] Run the GitHub workflow after a separately authorized integration. Local checks do not establish the remote CI result.
+
+Direct opening from `file://` remains untested; local verification uses an HTTP server.
