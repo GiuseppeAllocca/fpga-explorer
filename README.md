@@ -36,7 +36,7 @@ The tests cover all 64 input combinations of the LUT, the 256 addresses of the m
 
 ## Stack
 
-Vanilla JavaScript (ES modules) · SVG · [Three.js](https://threejs.org) 0.187 · [Vite](https://vite.dev) · [Vitest](https://vitest.dev) ·
+Vanilla TypeScript (strict, ES modules) · SVG · [Three.js](https://threejs.org) 0.187 · [Vite](https://vite.dev) · [Vitest](https://vitest.dev) ·
 GitHub Actions (CI + Pages). No runtime network requests; the production build ships a strict Content-Security-Policy.
 
 ## Run locally
@@ -44,6 +44,7 @@ GitHub Actions (CI + Pages). No runtime network requests; the production build s
 ```sh
 npm ci
 npm run dev      # development server
+npm run typecheck # strict TypeScript checks
 npm test         # data integrity, privacy guard, simulation logic
 npm run build    # production build in dist/
 ```
@@ -52,14 +53,21 @@ npm run build    # production build in dist/
 
 ```
 index.html, 3d.html      two entry pages (2D and 3D) sharing the same app
-src/main.js              model, side panel and 2D renderer
-src/three/renderer3d.js  3D renderer (loaded only on the 3D page)
+src/main.ts              bootstrap and module wiring
+src/model/               state, navigation, URL and renderer contracts
+src/panel/               side panel, board controls and announcements
+src/render2d/            SVG rendering and diagram interaction
+src/three/renderer3d.ts  3D renderer (loaded only on the 3D page)
+src/ui/                  DOM helpers and application controls
 src/simulations/        simulation models and controls shared by 2D and 3D
-src/data/fpga.json       the knowledge graph: nodes, sources, numbers
+src/data/                unchanged knowledge graph and checked TypeScript data types
 src/styles/              styles, themes, simulation controls
 tests/                   data integrity, privacy guard, simulations
 docs/testing.md          what was verified and what is still open
 ```
+
+The model receives renderer and panel callbacks; shared contracts are type-only imports. Simulation state and
+snapshots are typed by simulation id. Three.js remains behind the 3D entry page's dynamic import.
 
 ## How it was made
 
