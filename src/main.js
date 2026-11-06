@@ -1,3 +1,5 @@
+import {createPanel} from './panel';
+import {createBoard} from './panel/board';
 import dati from './data';
 import {createModel} from './model/state';
 import {$, crea, svg, pulsante} from './ui/dom';
@@ -13,118 +15,15 @@ const VISTA_3D = document.documentElement.dataset.view === '3d';
 const riduciMovimento = matchMedia('(prefers-reduced-motion: reduce)');
 const stretto = matchMedia('(max-width: 1099px)');
 const preciso = matchMedia('(hover: hover) and (pointer: fine)');
-const boardState = {pin: null, digit: null};
-let boardTimer = null;
 const simulazioni = creaSimulazioni({dati, cambiato: aggiornaSimulazioni, riduciMovimento: () => riduciMovimento.matches});
-const riferimenti = nodo => {
-  const lista = [...(nodo.fonti || []), ...(nodo.numeri || []).map(r => ({id:r.fonte,pagina:r.pagina})), ...(nodo.passi || []).map(r => ({id:r.fonte,pagina:r.pagina}))];
-  return lista.filter((r, i) => lista.findIndex(x => x.id === r.id && x.pagina === r.pagina) === i);
-};
-const tipiIncerti = nodo => [...new Set(riferimenti(nodo).map(r => dati.fonti[r.id]?.tipo).filter(t => t in TESTO_BADGE))];
-const TESTO_BADGE = {claude:'Non dalle fonti citate', da_verificare:'Da verificare'};
-const badgeClaude = (padre, tipo = 'claude') => crea('span', TESTO_BADGE[tipo], 'badge ' + tipo, padre);
-const linkFonte = (riferimento, padre) => {
-  const f = dati.fonti[riferimento.id];
-  if (!f) return;
-  if (f.tipo in TESTO_BADGE) { badgeClaude(padre, f.tipo); return; }
-  const a = crea('a', f.etichetta, null, padre);
-  if (/^https?:\/\//.test(f.url)) { a.href = f.url; a.target = '_blank'; a.rel = 'noopener noreferrer'; }
-  if (riferimento.pagina !== undefined) crea('span', ' · p. ' + riferimento.pagina, null, padre);
-};
-
 // Modello: dati, indirizzo, navigazione e stato; nessuna geometria del disegno.
+const board = createBoard({dati, riduciMovimento, aggiornaSimulazioni});
+const boardState = board.state;
+const selezioneBoard = board.selezioneBoard;
 const modello = createModel({dati, getRenderer: () => rendererAttivo, getPanel: () => pannello, simulazioni, stretto, VISTA_3D, selezioneBoard, aggiornaSimulazioni});
 
 // Pannello: contenuti letterali dei dati e soli testi dell'interfaccia ammessi.
-const pannello = {
-  render(id) {
-    simulazioni.chiudi();
-    const n = dati.nodi[id], contenitore = $('panel-scroll');
-    contenitore.replaceChildren(); contenitore.scrollTop = 0;
-    crea('h2', n.titolo, null, contenitore);
-    if (n.termine_en) crea('p', n.termine_en, 'term', contenitore);
-    const badges = crea('div', null, 'badges', contenitore);
-    const l = dati.livelli.find(l => l.id === n.livello);
-    if (l) crea('span', 'Livello ' + n.livello.slice(1) + ' · ' + l.nome, 'badge', badges);
-    if (id === 'lut.distram' || id === 'lut.srl') crea('span', 'solo SLICEM', 'badge', badges);
-    tipiIncerti(n).forEach(t => badgeClaude(badges, t));
-    if (n.in_breve) crea('p', n.in_breve, 'summary', contenitore);
-    if (n.pin) dettaglioPin(id, contenitore);
-    const azioni = crea('div', null, 'panel-actions', contenitore);
-    if (n.entra_in) pulsante('Entra', () => modello.entra(id), azioni, 'primary');
-    if (n.vai_a) pulsante('Apri la scheda', () => modello.render(n.vai_a), azioni);
-    if (!azioni.childElementCount) azioni.remove();
-    const tabs = crea('div', null, 'tabs', contenitore);
-    tabs.setAttribute('role','tablist'); tabs.setAttribute('aria-label','Spiegazione');
-    const nomi = ['Spiegazione', ...(n.numeri || n.pin ? ['Numeri'] : []), ...(simulazioni.perNodo(id) ? ['Prova'] : []), 'Fonti'];
-    const area = crea('div', null, 'tab-content', contenitore);
-    area.id = 'panel-tab-content'; area.setAttribute('role','tabpanel'); area.tabIndex = 0;
-    const scegliScheda = (nome, focus = false) => {
-      simulazioni.chiudi();
-      modello.stato.scheda = nome;
-      [...tabs.children].forEach(b => {const attivo = b.textContent === nome; b.setAttribute('aria-selected',String(attivo)); b.tabIndex = attivo ? 0 : -1; if(attivo && focus) b.focus();});
-      area.setAttribute('aria-labelledby','tab-' + nome);
-      area.replaceChildren();
-      if (nome === 'Spiegazione') this.spiegazione(n, area);
-      else if (nome === 'Numeri') this.numeri(n, area);
-      else if (nome === 'Prova') simulazioni.monta(simulazioni.perNodo(id), area);
-      else this.fonti(n, area);
-    };
-    nomi.forEach(nome => {
-      const b = pulsante(nome, () => scegliScheda(nome), tabs);
-      b.id = 'tab-' + nome; b.setAttribute('role','tab'); b.setAttribute('aria-controls',area.id);
-      b.addEventListener('keydown', e => {
-        const i=nomi.indexOf(nome);
-        if (['ArrowLeft','ArrowRight','Home','End'].includes(e.key)) {
-          e.preventDefault();
-          scegliScheda(nomi[e.key==='Home'?0:e.key==='End'?nomi.length-1:(i+(e.key==='ArrowRight'?1:nomi.length-1))%nomi.length],true);
-        }
-      });
-    });
-    scegliScheda('Spiegazione');
-    crea('div', 'Nodo: ' + id, 'node-footer mono', contenitore);
-  },
-  spiegazione(n, area) {
-    (n.spiegazione || []).forEach(p => crea('p', p, null, area));
-    [['esempio','Esempio',''],['errore_comune','Errore comune','error']].forEach(([campo, etichetta, classe]) => {
-      if (!n[campo]) return;
-      const c = crea('section', null, 'callout ' + classe, area);
-      crea('h3', etichetta, null, c); crea('p', n[campo], null, c);
-    });
-    (n.passi || []).forEach(p => {
-      const c=crea('section',null,'step',area);
-      crea('h3',p.nome,null,c); crea('p',p.testo,null,c);
-      linkFonte({id:p.fonte,pagina:p.pagina},crea('div',null,'source',c));
-    });
-    if (n.collegati?.length) {
-      const c=crea('section',null,'links',area); crea('h3','Collegati',null,c);
-      const r=crea('div',null,'related',c);
-      n.collegati.forEach(id => pulsante(dati.nodi[id].titolo,()=>modello.render(id),r));
-    }
-  },
-  numeri(n, area) {
-    if (n.numeri?.length) {
-      const t=crea('table',null,'numbers',area); t.setAttribute('aria-label','Numeri');
-      const corpo=crea('tbody',null,null,t);
-      n.numeri.forEach(r => {
-        const tr=crea('tr',null,null,corpo); crea('th',r.voce,null,tr).scope='row';
-        const td=crea('td',null,null,tr); crea('span',r.valore,null,td);
-        linkFonte({id:r.fonte,pagina:r.pagina},crea('small',null,'source',td));
-      });
-    }
-    if (n.pin) {
-      const t=crea('table',null,'numbers mono',area); t.setAttribute('aria-label','Pin');
-      crea('caption','Pin',null,t);
-      const corpo=crea('tbody',null,null,t);
-      Object.entries(n.pin).forEach(([nome,pin]) => {const tr=crea('tr',null,null,corpo); crea('th',nome,null,tr).scope='row'; crea('td',pin,null,tr);});
-      const fonti=crea('div',null,'sources',area); (n.fonti || []).forEach(r=>linkFonte(r,crea('div',null,'source',fonti)));
-    }
-  },
-  fonti(n, area) {
-    const elenco=crea('ul',null,'sources',area);
-    riferimenti(n).forEach(r=>linkFonte(r,crea('li',null,null,elenco)));
-  }
-};
+const pannello = createPanel({dati, modello, simulazioni, dettaglioPin: board.dettaglioPin});
 
 function aggiornaSimulazioni(stato = simulazioni.istantanea()) {
   rendererAttivo.aggiornaSimulazione?.({...stato, board: boardState});
@@ -137,39 +36,6 @@ function aggiornaSimulazioni(stato = simulazioni.istantanea()) {
   else if (stato.id === 'sim_jtag') $('announcement').textContent = `TDO ${stato.tdo} · DONE ${Number(stato.done)}`;
 }
 
-function selezioneBoard(id) {
-  if (boardTimer !== null) clearInterval(boardTimer);
-  boardTimer = null;boardState.digit = null;
-  if (!['board.switch', 'board.led'].includes(id)) boardState.pin = null;
-  if (id === 'board.display') {
-    boardState.digit = 7;
-    if (!riduciMovimento.matches && !document.hidden) boardTimer = setInterval(() => {boardState.digit = (boardState.digit + 7) % 8;aggiornaSimulazioni();}, 200);
-  }
-  aggiornaSimulazioni();
-}
-
-function dettaglioPin(id, parent) {
-  const entries = Object.entries(dati.nodi[id].pin);
-  if (!entries.some(([, pin]) => pin === boardState.pin)) boardState.pin = entries[0][1];
-  const section = crea('section', null, 'sim-field', parent);crea('h3', 'Pin', null, section);
-  const select = crea('select', null, null, section);select.id = 'board-pin-select';select.setAttribute('aria-label', 'Pin');
-  entries.forEach(([name, pin]) => {const o = crea('option', name + ' · ' + pin, null, select);o.value = pin;});
-  select.value = boardState.pin;
-  const miniature = svg('svg', {viewBox: '0 0 320 400', class: 'pin-miniature', role: 'img', 'aria-label': 'Pin'}, section);
-  svg('rect', {x: 80, y: 36, width: 160, height: 328, rx: 8, class: 'package'}, miniature);
-  entries.forEach(([name, pin], i) => {
-    const right = i >= 8, y = 60 + (i % 8) * 40;
-    svg('circle', {cx: right ? 240 : 80, cy: y, r: 5, fill: 'var(--testo-2)', 'data-pin-marker': pin}, miniature);
-    const text = svg('text', {x: right ? 252 : 68, y: y + 5, 'text-anchor': right ? 'start' : 'end', 'data-pin-marker': pin}, miniature);text.textContent = pin;
-  });
-  const update = () => {
-    boardState.pin = select.value;
-    miniature.setAttribute('aria-label', select.selectedOptions[0].textContent);
-    miniature.querySelectorAll('[data-pin-marker]').forEach(e => {const active = e.getAttribute('data-pin-marker') === boardState.pin;e.classList.toggle('selected', active);if (e.tagName.toLowerCase() === 'circle') e.setAttribute('fill', active ? 'var(--accento)' : 'var(--testo-2)');});
-    aggiornaSimulazioni();
-  };
-  select.addEventListener('change', update);update();
-}
 
 // Renderer 2D: SVG, selezione grafica, trasformazioni e input del disegno.
 // WCAG 2.5.3 (Label in Name): il nome accessibile di un controllo grafico contiene il testo che si vede.
@@ -701,7 +567,7 @@ document.addEventListener('keydown',e=>{
 });
 document.addEventListener('pointerdown',e=>{if(!$('legend').hidden&&!$('legend').contains(e.target)&&!$('legend-button').contains(e.target))apriLegenda(false);});
 addEventListener('popstate',daIndirizzo);addEventListener('hashchange',()=>{let id;try{id=decodeURIComponent(location.hash.slice(1));}catch{id='board';}if(id!==modello.stato.selezione)daIndirizzo();});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){if(boardTimer!==null)clearInterval(boardTimer);boardTimer=null;simulazioni.ferma();}else if(modello.stato.selezione==='board.display')selezioneBoard('board.display');});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){board.ferma();simulazioni.ferma();}else if(modello.stato.selezione==='board.display')selezioneBoard('board.display');});
 riduciMovimento.addEventListener('change',()=>{simulazioni.ferma();selezioneBoard(modello.stato.selezione);});
 stretto.addEventListener('change',()=>modello.aperturaPannello());
 new ResizeObserver(()=>rendererAttivo.ridimensiona()).observe(VISTA_3D?$('three-view'):$('drawing'));
