@@ -18,12 +18,12 @@
     <button id="theme-button" class="icon"></button>
   </div>
 </header>
-<div class="notice"><span id="schema-notice"></span></div>
+<section class="notice" aria-label="schema, non in scala"><span id="schema-notice"></span></section>
 <main class="workspace" id="workspace">
   <section class="stage" id="stage" aria-label="3D">
     <div class="stage-top"><button id="back-button" class="back" hidden></button><div id="variant" class="variant" hidden></div></div>
     <aside id="board-notice" class="board-note"></aside>
-    <div id="three-view" class="three-view"></div><nav id="three-nodes" class="three-nodes" aria-label="Livello"></nav>
+    <div id="three-view" class="three-view"></div><nav id="three-nodes" class="three-nodes" aria-label="Livello 3D"></nav>
     <span class="scale-note">schema, non in scala</span>
     <div class="zoom"><button id="zoom-out" aria-label="−">−</button><button id="zoom-in" aria-label="+">+</button><button id="fit-button">Adatta</button></div>
   </section>
@@ -33,7 +33,7 @@
     <div id="panel-scroll" class="panel-scroll"></div>
   </aside>
 </main>
-<aside id="legend" class="legend" role="dialog" aria-modal="false" aria-label="Legenda" hidden></aside>
+<div id="legend" class="legend" role="dialog" aria-modal="false" aria-label="Legenda" hidden></div>
 <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
 <div id="announcement" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 <script type="module" src="/src/main.js"></script>

@@ -50,6 +50,10 @@
 .three-label.selected{border-color:var(--accento);font-weight:600}
 .three-nodes{position:absolute;left:16px;right:16px;bottom:72px;display:flex;gap:6px;overflow:auto;padding:4px 0 8px;scrollbar-width:thin}
 .three-nodes button{flex:none;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;min-height:44px}
+.breadcrumb>button,.breadcrumb>span{flex:none}
+.dimension span,.dimension button{min-width:44px;min-height:44px}
+@media(max-width:1099px){.topbar{grid-template-columns:minmax(0,1fr) auto}}
+.sources a,.source a{display:inline-flex;align-items:center;min-height:44px;min-width:44px;max-width:100%}
 [data-view="3d"] .dimension button{border-radius:8px 0 0 8px}
 [data-view="3d"] .dimension span{border-radius:0 8px 8px 0}
 .three-fallback{position:absolute;inset:30%;display:grid;place-items:center}

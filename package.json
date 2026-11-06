@@ -1,6 +1,6 @@
 {
   "name": "fpga-explorer",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "private": true,
   "description": "Esploratore interattivo di un FPGA Artix-7, dalla board alla LUT, in 2D (SVG) e 3D (Three.js)",
   "license": "MIT",
