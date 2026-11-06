@@ -1,4 +1,4 @@
-import {bramEdge, tristateAnd, resolvePin, routeBetween, divider, shiftBoundary, bitstreamBits} from './chip-logic.js';
+import {bramEdge, tristateAnd, resolvePin, routeBetween, divider, shiftBoundary, bitstreamBits} from './chip-logic.ts';
 
 const ids = ['sim_bram', 'sim_tristate', 'sim_switch', 'sim_clock', 'sim_jtag', 'sim_flow'];
 const NS = 'http://www.w3.org/2000/svg';

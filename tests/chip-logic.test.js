@@ -1,6 +1,6 @@
 import {describe, expect, it} from 'vitest';
 import dati from '../src/data/fpga.json';
-import * as logic from '../src/simulations/chip-logic.js';
+import * as logic from '../src/simulations/chip-logic.ts';
 
 const {bramEdge, tristateAnd, resolvePin, routeBetween, divider, shiftBoundary, bitstreamBits} = logic;
 const modes = ['WRITE_FIRST', 'READ_FIRST', 'NO_CHANGE'];

@@ -1,4 +1,4 @@
-import {address, binary, lutTable, readLut, wideTable, readWide, smallMux, timingTrace, writeRam, shiftRegister, carryTrace} from './logic.js';
+import {address, binary, lutTable, readLut, wideTable, readWide, smallMux, timingTrace, writeRam, shiftRegister, carryTrace} from './logic.ts';
 import {creaPannelloChip} from './chip-panel.js';
 
 const supported = new Set(['sim_lut', 'sim_widemux', 'sim_ff_latch', 'sim_distram', 'sim_srl', 'sim_carry']);

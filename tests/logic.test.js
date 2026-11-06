@@ -1,5 +1,5 @@
 import {describe, expect, it} from 'vitest';
-import {address, binary, lutTable, readLut, wideTable, readWide, smallMux, timingTrace, writeRam, shiftRegister, carryTrace} from '../src/simulations/logic.js';
+import {address, binary, lutTable, readLut, wideTable, readWide, smallMux, timingTrace, writeRam, shiftRegister, carryTrace} from '../src/simulations/logic.ts';
 
 describe('LUT e multiplexer', () => {
   it('verifica tutte le 64 combinazioni delle tre funzioni', () => {
