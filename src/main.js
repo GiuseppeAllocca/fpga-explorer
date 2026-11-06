@@ -1,4 +1,6 @@
-import dati from './data/fpga.json';
+import dati from './data';
+import {createModel} from './model/state';
+import {$, crea, svg, pulsante} from './ui/dom';
 import './styles/app.css';
 import './styles/simulations.css';
 import './styles/chip-simulations.css';
@@ -8,33 +10,12 @@ import {creaSimulazioni} from './simulations/panel.ts';
 const creaRenderer3d = document.documentElement.dataset.view === '3d' ? (await import('./three/renderer3d.js')).creaRenderer3d : null;
 
 const VISTA_3D = document.documentElement.dataset.view === '3d';
-const $ = id => document.getElementById(id);
-const NS = 'http://www.w3.org/2000/svg';
 const riduciMovimento = matchMedia('(prefers-reduced-motion: reduce)');
 const stretto = matchMedia('(max-width: 1099px)');
 const preciso = matchMedia('(hover: hover) and (pointer: fine)');
 const boardState = {pin: null, digit: null};
 let boardTimer = null;
 const simulazioni = creaSimulazioni({dati, cambiato: aggiornaSimulazioni, riduciMovimento: () => riduciMovimento.matches});
-const crea = (tag, testo, classe, padre) => {
-  const e = document.createElement(tag);
-  if (testo !== undefined && testo !== null) e.textContent = testo;
-  if (classe) e.className = classe;
-  if (padre) padre.append(e);
-  return e;
-};
-const svg = (tag, attributi = {}, padre) => {
-  const e = document.createElementNS(NS, tag);
-  for (const [k, v] of Object.entries(attributi)) e.setAttribute(k, v);
-  if (padre) padre.append(e);
-  return e;
-};
-const pulsante = (testo, azione, padre, classe) => {
-  const e = crea('button', testo, classe, padre);
-  e.type = 'button';
-  e.addEventListener('click', azione);
-  return e;
-};
 const riferimenti = nodo => {
   const lista = [...(nodo.fonti || []), ...(nodo.numeri || []).map(r => ({id:r.fonte,pagina:r.pagina})), ...(nodo.passi || []).map(r => ({id:r.fonte,pagina:r.pagina}))];
   return lista.filter((r, i) => lista.findIndex(x => x.id === r.id && x.pagina === r.pagina) === i);
@@ -52,86 +33,7 @@ const linkFonte = (riferimento, padre) => {
 };
 
 // Modello: dati, indirizzo, navigazione e stato; nessuna geometria del disegno.
-const modello = {
-  dati,
-  stato: {radice:'board', selezione:'board', precedente:'board', pannelloAperto:true, foglio:45, scheda:'Spiegazione', variante:'SLICEL', modo:'lut'},
-  radiceDi(id) {
-    const n = dati.nodi[id];
-    return n?.livello === 'laterale' ? id : dati.livelli.find(l => l.id === n?.livello)?.radice;
-  },
-  render(id, opzioni = {}) {
-    if (rendererAttivo.inTransizione) {this.inAttesa={id,opzioni};return;}
-    const focusPrima=document.activeElement;
-    if (!dati.nodi[id]) id = 'board';
-    const s = this.stato, prima = s.radice, vecchiaSelezione = s.selezione, nuova = this.radiceDi(id);
-    const modoPrima = s.modo;
-    if (nuova === 'lut' && ['lut','lut.rom','lut.distram','lut.srl'].includes(id)) s.modo = id;
-    if (nuova !== prima && dati.nodi[nuova].livello === 'laterale' && dati.nodi[prima].livello !== 'laterale') s.precedente = s.selezione;
-    if (opzioni.precedente && dati.nodi[opzioni.precedente]) s.precedente = opzioni.precedente;
-    s.radice = nuova; s.selezione = id; s.scheda = 'Spiegazione';
-    if (stretto.matches) s.pannelloAperto = true;
-    const disegna = () => {
-      if (nuova !== prima || !rendererAttivo.gruppo || s.modo !== modoPrima) rendererAttivo.render(nuova);
-      rendererAttivo.seleziona(id);
-      pannello.render(id);
-      this.barra();
-      this.aperturaPannello();
-      selezioneBoard(id);
-      $('announcement').textContent = dati.nodi[id].titolo;
-      if(focusPrima&&!focusPrima.isConnected)(VISTA_3D?$('three-nodes').querySelector('button'):$('drawing').querySelector('[role="button"][tabindex="0"]'))?.focus({preventScroll:true});
-    };
-    if (opzioni.animazione && nuova !== prima) rendererAttivo.transizione(vecchiaSelezione, opzioni.inversa, disegna);
-    else disegna();
-    if (!opzioni.daIndirizzo) history.pushState({nodo:id,precedente:s.precedente}, '', '#' + encodeURIComponent(id));
-  },
-  seleziona(id) { this.render(id); },
-  selezionaPin(pin) {const select=$('board-pin-select');if(select){select.value=pin;select.dispatchEvent(new Event('change'));}},
-  selezionaSwitch(i) {if(simulazioni.istantanea().id!=='sim_switch'){this.render('interconnessione');$('tab-Prova')?.click();}simulazioni.switch(i);},
-  selezionaPasso(i) {if(simulazioni.istantanea().id!=='sim_flow'){this.render('flusso');$('tab-Prova')?.click();}simulazioni.passo(i);},
-  entra(id = this.stato.selezione) {
-    const destinazione = dati.nodi[id]?.entra_in;
-    if (destinazione && !rendererAttivo.inTransizione) this.render(destinazione, {animazione:true});
-  },
-  esci() {
-    const s = this.stato, n = dati.nodi[s.radice];
-    if (n.livello === 'laterale') this.render(s.precedente, {animazione:true,inversa:true});
-    else if (s.radice !== 'board') this.render(dati.nodi[s.radice].padre, {animazione:true,inversa:true});
-    else if (s.selezione !== 'board') this.render('board');
-  },
-  barra() {
-    const s = this.stato, laterale = dati.nodi[s.radice].livello === 'laterale';
-    const base = laterale ? this.radiceDi(s.precedente) : s.radice;
-    const indice = Math.max(0, dati.livelli.findIndex(l => l.radice === base));
-    $('breadcrumb').replaceChildren();
-    dati.livelli.slice(0, indice + 1).forEach((l, i) => {
-      if (i) crea('span', '›', null, $('breadcrumb')).setAttribute('aria-hidden', 'true');
-      const b = pulsante(l.nome, () => this.render(l.radice,{animazione:true,inversa:true}), $('breadcrumb'));
-      if (!laterale && l.radice === s.radice) b.setAttribute('aria-current','page');
-    });
-    if (laterale) {
-      crea('span','›',null,$('breadcrumb')).setAttribute('aria-hidden','true');
-      const b = pulsante(dati.nodi[s.radice].titolo, () => this.seleziona(s.radice), $('breadcrumb'));
-      b.setAttribute('aria-current','page');
-    }
-    $('back-button').hidden = !laterale;
-    if (laterale) $('back-button').textContent = '← Torna a ' + (dati.livelli.find(l => l.radice === base)?.nome || dati.livelli[0].nome);
-    $('board-notice').hidden = s.radice !== 'board';
-    $('variant').hidden = s.radice !== 'slice';
-    $('variant').replaceChildren();
-    if (s.radice === 'slice') dati.nodi.slice.varianti.forEach(v => {
-      const b = pulsante(v, () => {if(rendererAttivo.inTransizione)return;s.variante=v; rendererAttivo.render('slice'); rendererAttivo.seleziona(s.selezione); this.barra();aggiornaSimulazioni();}, $('variant'));
-      b.setAttribute('aria-pressed', String(v === s.variante));
-    });
-  },
-  aperturaPannello() {
-    const aperto = this.stato.pannelloAperto;
-    $('panel').classList.toggle('closed', !aperto);
-    $('panel-toggle').setAttribute('aria-expanded', String(aperto));
-    $('panel-toggle').textContent = stretto.matches ? (aperto ? '⌄' : '⌃') : (aperto ? '›' : '‹');
-    $('workspace').style.setProperty('--sheet', aperto && stretto.matches ? this.stato.foglio + '%' : '0%');
-    $('sheet-handle').setAttribute('aria-valuetext', this.stato.foglio + '%');$('sheet-handle').setAttribute('aria-valuenow', this.stato.foglio);
-  }
-};
+const modello = createModel({dati, getRenderer: () => rendererAttivo, getPanel: () => pannello, simulazioni, stretto, VISTA_3D, selezioneBoard, aggiornaSimulazioni});
 
 // Pannello: contenuti letterali dei dati e soli testi dell'interfaccia ammessi.
 const pannello = {
