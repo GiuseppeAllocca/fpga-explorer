@@ -2,7 +2,7 @@ import dati from './data/fpga.json';
 import './styles/app.css';
 import './styles/simulations.css';
 import './styles/chip-simulations.css';
-import {creaSimulazioni} from './simulations/panel.js';
+import {creaSimulazioni} from './simulations/panel.ts';
 
 // Three.js si carica solo nella pagina 3D.
 const creaRenderer3d = document.documentElement.dataset.view === '3d' ? (await import('./three/renderer3d.js')).creaRenderer3d : null;

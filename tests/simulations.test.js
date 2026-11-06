@@ -1,6 +1,6 @@
 import {afterEach, beforeEach, describe, expect, it, vi} from 'vitest';
 import dati from '../src/data/fpga.json';
-import {creaSimulazioni} from '../src/simulations/panel.js';
+import {creaSimulazioni} from '../src/simulations/panel.ts';
 
 // DOM minimo per il controller: non verifica layout, focus del browser o accessibilità.
 class Element {
