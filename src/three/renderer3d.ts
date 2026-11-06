@@ -1,7 +1,46 @@
+import type {Data} from '../data';
+import type {Model, Renderer} from '../model/types';
+import type {SceneSnapshot} from '../simulations/types';
+
+type Point3 = [number, number, number?];
+interface MeshMetadata {
+  nodeId?: string | null;
+  pin?: string;
+  boardDigit?: number;
+  sramAddress?: number;
+  fixedFF?: boolean;
+  carryStage?: number;
+  wideQuarter?: number;
+  wideMux?: string;
+  bramAddress?: number;
+  switchIndex?: number;
+  routingMatrix?: number;
+  routingEdge?: {a: number; b: number; index: number};
+  jtagCell?: number;
+  jtagChain?: boolean;
+  jtagNormal?: boolean;
+  configDone?: boolean;
+  configProgress?: boolean;
+  flowStep?: number;
+  tristateOutput?: boolean;
+  tristatePin?: boolean;
+  originalColor?: THREE.Color;
+}
+type SceneMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
+interface SceneLabel {
+  elemento: HTMLSpanElement;
+  posizione: THREE.Vector3;
+  id: string;
+  importante: boolean;
+  largo?: number;
+  alto?: number;
+  testoMisurato?: string | null;
+}
+
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-export function creaRenderer3d({ dati, modello, mount, navigazione }) {
+export function creaRenderer3d({ dati, modello, mount, navigazione }: {dati: Data; modello: Model; mount: HTMLElement; navigazione: HTMLElement}): Renderer {
   const scena = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(40, 1, .05, 1000);
   const webgl = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -36,40 +75,41 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
 
   const geometriaBox = new THREE.BoxGeometry(1, 1, 1);
   const geometriaCilindro = new THREE.CylinderGeometry(1, 1, 1, 20);
-  const materiali = new Map();
-  let gruppo, parti, bersagli, testi, decorazioni, selezione, bordoSelezione;
+  const materiali = new Map<string, THREE.MeshStandardMaterial>();
+  let gruppo: THREE.Group, parti: Map<string, THREE.Group>, bersagli: SceneMesh[], testi: SceneLabel[], decorazioni: (THREE.BufferGeometry | THREE.Material)[], selezione: string;
+  let bordoSelezione: THREE.BoxHelper | null = null;
   let larghezza = 1000, altezza = 760, distanzaAdatta = 35, richiesto = 0, fotogrammi = 0;
   let radice = 'board', animazione = 0, versioneScena = 0;
   let dimensioniPrecedenti = [0, 0];
-  let statoSimulazione = {};
+  let statoSimulazione: {ffLatch?: boolean} = {};
   const ridotto = matchMedia('(prefers-reduced-motion: reduce)');
   const raycaster = new THREE.Raycaster();
   const cursore = new THREE.Vector2();
-  const stile = token => getComputedStyle(document.documentElement).getPropertyValue('--' + token).trim();
-  const colore = token => token.startsWith('#') ? token : stile(token);
-  const posizione = (x, z, y = 0) => new THREE.Vector3((x-larghezza/2)/50, y/50, (z-altezza/2)/50);
-  const materiale = (token, opacita = 1) => {
+  const stile = (token: string) => getComputedStyle(document.documentElement).getPropertyValue('--' + token).trim();
+  const colore = (token: string) => token.startsWith('#') ? token : stile(token);
+  const posizione = (x: number, z: number, y = 0) => new THREE.Vector3((x-larghezza/2)/50, y/50, (z-altezza/2)/50);
+  const materiale = (token: string, opacita = 1) => {
     const c = colore(token), chiave = c + '/' + opacita;
     if (!materiali.has(chiave)) materiali.set(chiave, new THREE.MeshStandardMaterial({ color:c, roughness:.58, metalness:token==='metallo'?.65:.08, transparent:opacita<1, opacity:opacita }));
-    return materiali.get(chiave);
+    return materiali.get(chiave)!;
   };
-  function parte(id) {
+  function parte(id: string | null) {
     if (!id) return gruppo;
     if (!parti.has(id)) { const p=new THREE.Group(); p.userData.nodeId=id; gruppo.add(p); parti.set(id,p); }
-    return parti.get(id);
+    return parti.get(id)!;
   }
-  function box(id,x,z,w,h,spessore,token,quota=0,opacita=1) {
+  function box(id: string | null, x: number, z: number, w: number, h: number, spessore: number, token: string, quota=0, opacita=1) {
     const m=new THREE.Mesh(geometriaBox, materiale(token,opacita));
     m.scale.set(w/50,spessore/50,h/50);
     m.position.copy(posizione(x+w/2,z+h/2,quota+spessore/2));
     m.userData.nodeId=id; parte(id).add(m); if(id)bersagli.push(m); return m;
   }
-  function cilindro(id,x,z,r,spessore,token,quota=0,opacita=1) {
+  function cilindro(id: string | null, x: number, z: number, r: number, spessore: number, token: string, quota=0, opacita=1) {
     const m=new THREE.Mesh(geometriaCilindro,materiale(token,opacita));
     m.scale.set(r/50,spessore/50,r/50);m.position.copy(posizione(x,z,quota+spessore/2));m.userData.nodeId=id;
     parte(id).add(m);if(id)bersagli.push(m);return m;
   }
-  function filo(id,punti,token='testo-2',raggio=1.5,opacita=1) {
+  function filo(id: string | null, punti: Point3[], token='testo-2', raggio=1.5, opacita=1) {
     const meshes=[];
     for(let i=1;i<punti.length;i++) {
       const a=posizione(...punti[i-1]),b=posizione(...punti[i]);
@@ -80,21 +120,21 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
     }
     return meshes;
   }
-  function cornice(id,x,z,w,h,quota=10,token='testo-2',opacita=1) {
+  function cornice(id: string | null, x: number, z: number, w: number, h: number, quota=10, token='testo-2', opacita=1) {
     filo(id,[[x,z,quota],[x+w,z,quota],[x+w,z+h,quota],[x,z+h,quota],[x,z,quota]],token,1.4,opacita);
   }
-  function trapezio(id,x,z,w,h,spessore,token,quota=0) {
+  function trapezio(id: string | null, x: number, z: number, w: number, h: number, spessore: number, token: string, quota=0) {
     const s=new THREE.Shape();s.moveTo(0,0);s.lineTo(w/50,h*.2/50);s.lineTo(w/50,h*.8/50);s.lineTo(0,h/50);s.closePath();
     const geo=new THREE.ExtrudeGeometry(s,{depth:spessore/50,bevelEnabled:false});decorazioni.push(geo);
     const m=new THREE.Mesh(geo,materiale(token));m.rotation.x=Math.PI/2;m.position.copy(posizione(x,z,quota+spessore));m.userData.nodeId=id;parte(id).add(m);bersagli.push(m);return m;
   }
-  function etichetta(id,testo,x,z,quota=25,importante=false) {
+  function etichetta(id: string, testo: string, x: number, z: number, quota=25, importante=false) {
     const e=document.createElement('span');e.className='three-label';e.textContent=testo;e.dataset.nodeLabel=id;e.dataset.important=String(importante);etichette.append(e);
     testi.push({elemento:e,posizione:posizione(x,z,quota),id,importante});
     return e;
   }
   function pedana(w=larghezza-40,h=altezza-80) { box(radice,20,65,w,h,10,'superficie',-12); }
-  function ingressoLut(id,x,z,w,h,lettera,token='slicel',quota=0) {
+  function ingressoLut(id: string, x: number, z: number, w: number, h: number, lettera: string, token='slicel', quota=0) {
     const m=box(id,x,z,w,h,25,token,quota);etichetta(id,'LUT '+lettera,x+w/2,z+h/2,quota+31,true);
     for(let j=0;j<6;j++)filo(id,[[x-22,z+12+j*(h-24)/5,quota+9],[x,z+12+j*(h-24)/5,quota+9]],'metallo',1.2);
     filo(id,[[x+w,z+h*.27,quota+9],[x+w+30,z+h*.27,quota+9]],'testo-2',1.5);
@@ -111,8 +151,8 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
   }
   function disegnaEtichette() {
     const w=mount.clientWidth,h=mount.clientHeight;
-    const occupati=[];
-    const ordine=[...testi].sort((a,b)=>Number(b.elemento.dataset.simRead==='true')-Number(a.elemento.dataset.simRead==='true')||(b.id===selezione)-(a.id===selezione)||Number(b.importante)-Number(a.importante));
+    const occupati: {x: number; y: number; w: number; h: number}[]=[];
+    const ordine=[...testi].sort((a,b)=>Number(b.elemento.dataset.simRead==='true')-Number(a.elemento.dataset.simRead==='true')||Number(b.id===selezione)-Number(a.id===selezione)||Number(b.importante)-Number(a.importante));
     for(const t of ordine) {
       const p=t.posizione.clone().project(camera),e=t.elemento;
       if(!e.textContent||(e.dataset.unavailable==='true'&&!statoSimulazione.ffLatch)){e.hidden=true;continue;}
@@ -120,7 +160,7 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
       if(e.classList.contains('selected')!==selezionata){e.classList.toggle('selected',selezionata);t.largo=0;t.alto=0;}
       const x=(p.x+1)*w/2,y=(1-p.y)*h/2;
       if(t.testoMisurato!==e.textContent||!t.largo||!t.alto){e.hidden=false;t.largo=e.offsetWidth;t.alto=e.offsetHeight;t.testoMisurato=e.textContent;}
-      const largo=t.largo,alto=t.alto;
+      const largo=t.largo!,alto=t.alto!;
       const r={x:x-largo/2,y:y-alto/2,w:largo,h:alto};
       const dentro=p.z<1&&p.z>-1&&x>8&&x<w-8&&y>8&&y<h-8;
       const sovrapposta=occupati.some(a=>r.x<a.x+a.w+4&&r.x+r.w+4>a.x&&r.y<a.y+a.h+3&&r.y+r.h+3>a.y);
@@ -154,7 +194,7 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
     controlli.minDistance=distanzaAdatta/4;controlli.maxDistance=distanzaAdatta*2;controlli.update();richiediDisegno();
   }
 
-  const renderer = {
+  const renderer: Renderer = {
     get gruppo(){return gruppo;},inTransizione:false,vista:{scala:1,x:0,y:0},
     render(id) {
       versioneScena++;cancelAnimationFrame(animazione);radice=id;
@@ -169,7 +209,7 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
         b.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.shiftKey){e.preventDefault();modello.entra(nodo);}});navigazione.append(b);
       }
       webgl.domElement.dataset.root=id;webgl.domElement.dataset.sceneNodes=JSON.stringify([...parti.keys()]);
-      let conteggio=0;gruppo.traverse(o=>{if(o.isMesh)conteggio++;});webgl.domElement.dataset.meshCount=String(conteggio);
+      let conteggio=0;gruppo.traverse(o=>{if((o as THREE.Mesh).isMesh)conteggio++;});webgl.domElement.dataset.meshCount=String(conteggio);
       this.ridimensiona();adatta();disegna();
     },
     seleziona(id) {
@@ -177,28 +217,29 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
       if(bordoSelezione){scena.remove(bordoSelezione);bordoSelezione.geometry.dispose();bordoSelezione.material.dispose();bordoSelezione=null;}
       const p=parti.get(id);
       if(p){bordoSelezione=new THREE.BoxHelper(p,new THREE.Color(stile('accento')));bordoSelezione.material.depthTest=false;bordoSelezione.renderOrder=10;scena.add(bordoSelezione);}
-      for(const b of navigazione.children)b.setAttribute('aria-pressed',String(b.dataset.node===id));
+      for(const b of navigazione.children as HTMLCollectionOf<HTMLButtonElement>)b.setAttribute('aria-pressed',String(b.dataset.node===id));
       richiediDisegno();
     },
     aggiornaSimulazione(s) {
       if(!gruppo)return;statoSimulazione=s;
-      const memory=['sim_lut','sim_distram','sim_srl'].includes(s.id),wide=s.id==='sim_widemux'&&!s.small;
+      const memory=s.id==='sim_lut'||s.id==='sim_distram'||s.id==='sim_srl',wide=s.id==='sim_widemux'&&!s.small;
       const bram=s.id==='sim_bram',config=s.id==='sim_jtag'?s:s.configuration,routes=s.id==='sim_switch'?s.routes:[];
       const matrices=new Set(routes.flat());
-      gruppo.traverse(m=>{
-        if(!m.isMesh)return;
-        const d=m.userData;let token=null;
-        if(Number.isInteger(d.sramAddress)&&memory&&s.cells[d.sramAddress]!==undefined)token=s.cells[d.sramAddress]?'attivo':'inattivo';
+      gruppo.traverse(object=>{
+        if(!(object as THREE.Mesh).isMesh)return;
+        const m=object as SceneMesh;
+        const d=m.userData as MeshMetadata;let token: string | null=null;
+        if(Number.isInteger(d.sramAddress)&&memory&&s.cells[d.sramAddress!]!==undefined)token=s.cells[d.sramAddress!]?'attivo':'inattivo';
         if(d.fixedFF&&s.ffLatch)token='inattivo';
         if(Number.isInteger(d.boardDigit)&&s.board?.digit===d.boardDigit)token='attivo';
         if(d.pin&&s.board?.pin===d.pin)token='accento';
         if(Number.isInteger(d.carryStage)&&s.id==='sim_carry'&&s.step>0&&(s.step-1)%4===d.carryStage)token='accento';
-        if(wide&&(d.wideQuarter===s.quarter||['F7AMUX','F7BMUX','F8MUX'].includes(d.wideMux)))token='accento';
-        if(Number.isInteger(d.bramAddress)&&bram)token=s.cells[d.bramAddress]==='?'?'errore':s.ports.some(p=>p.address===d.bramAddress)?'accento':null;
+        if(wide&&(d.wideQuarter===s.quarter||['F7AMUX','F7BMUX','F8MUX'].includes(d.wideMux!)))token='accento';
+        if(Number.isInteger(d.bramAddress)&&bram)token=s.cells[d.bramAddress!]==='?'?'errore':s.ports.some(p=>p.address===d.bramAddress)?'accento':null;
         if(Number.isInteger(d.switchIndex)&&s.id==='sim_switch'&&s.source===d.switchIndex)token='accento';
-        if(Number.isInteger(d.routingMatrix)&&matrices.has(d.routingMatrix))token='accento';
+        if(Number.isInteger(d.routingMatrix)&&matrices.has(d.routingMatrix!))token='accento';
         if(d.routingEdge){const {index,a,b}=d.routingEdge,route=routes[index];m.visible=!!route?.some((n,i)=>i&&((route[i-1]===a&&n===b)||(route[i-1]===b&&n===a)));}
-        if(Number.isInteger(d.jtagCell)&&config?.test)token=config.cells[d.jtagCell]?'attivo':'inattivo';
+        if(Number.isInteger(d.jtagCell)&&config?.test)token=config.cells[d.jtagCell!]?'attivo':'inattivo';
         if(d.jtagChain)m.visible=!!config?.test;
         if(d.jtagNormal)m.visible=!config?.test;
         if(d.configDone)token=config?.done?'attivo':'inattivo';
@@ -216,10 +257,10 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
         if(d.bramWord!==undefined){const address=Number(d.bramWord),v=bram?s.cells[address]:0;t.elemento.textContent=d.bramWord+' · '+(v==='?'?'?':v.toString(2).padStart(8,'0'));d.simRead=String(bram&&s.ports.some(p=>p.address===address));}
         if(d.bramOutput!==undefined){t.elemento.textContent='Q · '+(bram?s.outputs[Number(d.bramOutput)]:0);d.simRead=String(bram);}
         if(d.jtagBit!==undefined)t.elemento.textContent=config?.test?String(config.cells[Number(d.jtagBit)]):'';
-        if(d.tristateSignal!==undefined){t.elemento.textContent=s.id==='sim_tristate'?String(s[d.tristateSignal]):'Z';d.simRead=String(s.id==='sim_tristate');}
+        if(d.tristateSignal!==undefined){t.elemento.textContent=s.id==='sim_tristate'?String(s[d.tristateSignal as 'y' | 'wire' | 'fpga' | 'external']):'Z';d.simRead=String(s.id==='sim_tristate');}
         if(d.flowStep!==undefined)d.simRead=String(s.id==='sim_flow'&&s.step===Number(d.flowStep));
       });
-      webgl.domElement.dataset.sim=s.id||'';webgl.domElement.dataset.simOutput=String(s.o6??s.output??s.wire??'');
+      webgl.domElement.dataset.sim=s.id||'';webgl.domElement.dataset.simOutput=String(('o6' in s?s.o6:undefined)??('output' in s?s.output:undefined)??('wire' in s?s.wire:undefined)??'');
       webgl.domElement.dataset.configDone=String(!!config?.done);webgl.domElement.dataset.routes=String(routes.length);webgl.domElement.dataset.flowStep=String(s.id==='sim_flow'?s.step:'');
       richiediDisegno();
     },
@@ -234,33 +275,33 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
       const a=controlli.target.clone(),aCamera=camera.position.clone();
       const finale=inversa?camera.position.clone().multiplyScalar(1.2):camera.position.clone().sub(obiettivo).multiplyScalar(.7).add(obiettivo);
       const inizio=performance.now();
-      const passo=t=>{if(token!==versioneScena)return;const v=Math.min(1,(t-inizio)/450),e=v*v*(3-2*v);controlli.target.lerpVectors(a,obiettivo,e);camera.position.lerpVectors(aCamera,finale,e);camera.lookAt(controlli.target);disegna();if(v<1)animazione=requestAnimationFrame(passo);else{prossima();mount.animate([{opacity:.2},{opacity:1}],{duration:200});this.inTransizione=false;controlli.enabled=true;if(modello.inAttesa){const attesa=modello.inAttesa;modello.inAttesa=null;modello.render(attesa.id,attesa.opzioni);}}};
+      const passo=(t: number)=>{if(token!==versioneScena)return;const v=Math.min(1,(t-inizio)/450),e=v*v*(3-2*v);controlli.target.lerpVectors(a,obiettivo,e);camera.position.lerpVectors(aCamera,finale,e);camera.lookAt(controlli.target);disegna();if(v<1)animazione=requestAnimationFrame(passo);else{prossima();mount.animate([{opacity:.2},{opacity:1}],{duration:200});this.inTransizione=false;controlli.enabled=true;if(modello.inAttesa){const attesa=modello.inAttesa;modello.inAttesa=null;modello.render(attesa.id,attesa.opzioni);}}};
       animazione=requestAnimationFrame(passo);
     },
     input() {
-      let inizio=null,ultimoTocco=null,timer,pinTrovato,switchTrovato,passoTrovato;
-      const trova=e=>{const r=webgl.domElement.getBoundingClientRect();cursore.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);raycaster.setFromCamera(cursore,camera);const hit=raycaster.intersectObjects(bersagli.filter(m=>m.visible),false)[0]?.object;pinTrovato=hit?.userData.pin;switchTrovato=hit?.userData.switchIndex;passoTrovato=hit?.userData.flowStep;return hit?.userData.nodeId;};
-      webgl.domElement.addEventListener('pointerdown',e=>{inizio={x:e.clientX,y:e.clientY,id:e.pointerId};document.getElementById('tooltip').hidden=true;});
-      webgl.domElement.addEventListener('pointerup',e=>{if(!inizio||inizio.id!==e.pointerId)return;const mosso=Math.hypot(e.clientX-inizio.x,e.clientY-inizio.y)>7;inizio=null;if(mosso||this.inTransizione)return;const id=trova(e);if(!id)return;if(Number.isInteger(switchTrovato)){modello.selezionaSwitch(switchTrovato);return;}if(Number.isInteger(passoTrovato)){modello.selezionaPasso(passoTrovato);return;}modello.seleziona(id);if(pinTrovato)modello.selezionaPin(pinTrovato);if(e.pointerType!=='mouse'){const ora=performance.now();if(ultimoTocco?.id===id&&ora-ultimoTocco.ora<350){modello.entra(id);ultimoTocco=null;}else ultimoTocco={id,ora};}});
+      let inizio: {x: number; y: number; id: number} | null=null, ultimoTocco: {id: string; ora: number} | null=null, timer: ReturnType<typeof setTimeout>, pinTrovato: string | undefined, switchTrovato: number | undefined, passoTrovato: number | undefined;
+      const trova=(e: MouseEvent)=>{const r=webgl.domElement.getBoundingClientRect();cursore.set((e.clientX-r.left)/r.width*2-1,-(e.clientY-r.top)/r.height*2+1);raycaster.setFromCamera(cursore,camera);const hit=raycaster.intersectObjects(bersagli.filter(m=>m.visible),false)[0]?.object;const metadata=hit?.userData as MeshMetadata | undefined;pinTrovato=metadata?.pin;switchTrovato=metadata?.switchIndex;passoTrovato=metadata?.flowStep;return metadata?.nodeId;};
+      webgl.domElement.addEventListener('pointerdown',e=>{inizio={x:e.clientX,y:e.clientY,id:e.pointerId};document.getElementById('tooltip')!.hidden=true;});
+      webgl.domElement.addEventListener('pointerup',e=>{if(!inizio||inizio.id!==e.pointerId)return;const mosso=Math.hypot(e.clientX-inizio.x,e.clientY-inizio.y)>7;inizio=null;if(mosso||this.inTransizione)return;const id=trova(e);if(!id)return;if(Number.isInteger(switchTrovato)){modello.selezionaSwitch(switchTrovato!);return;}if(Number.isInteger(passoTrovato)){modello.selezionaPasso(passoTrovato!);return;}modello.seleziona(id);if(pinTrovato)modello.selezionaPin(pinTrovato);if(e.pointerType!=='mouse'){const ora=performance.now();if(ultimoTocco?.id===id&&ora-ultimoTocco.ora<350){modello.entra(id);ultimoTocco=null;}else ultimoTocco={id,ora};}});
       webgl.domElement.addEventListener('pointercancel',()=>{inizio=null;});
       webgl.domElement.addEventListener('dblclick',e=>{const id=trova(e);if(id)modello.entra(id);});
       webgl.domElement.addEventListener('pointermove',e=>{
-        clearTimeout(timer);const t=document.getElementById('tooltip');t.hidden=true;if(inizio||e.pointerType!=='mouse')return;
+        clearTimeout(timer);const t=document.getElementById('tooltip')!;t.hidden=true;if(inizio||e.pointerType!=='mouse')return;
         const id=trova(e);webgl.domElement.style.cursor=id?'pointer':'grab';if(!id)return;
-        timer=setTimeout(()=>{const n=dati.nodi[id];t.replaceChildren();const titolo=document.createElement('strong');titolo.textContent=n.titolo;const breve=document.createElement('span');breve.textContent=n.in_breve;t.append(titolo,breve);t.hidden=false;const r=t.getBoundingClientRect();t.style.left=Math.min(innerWidth-r.width-12,e.clientX+16)+'px';t.style.top=Math.min(innerHeight-r.height-12,e.clientY+16)+'px';},300);
+        timer=setTimeout(()=>{const n=dati.nodi[id];t.replaceChildren();const titolo=document.createElement('strong');titolo.textContent=n.titolo;const breve=document.createElement('span');breve.textContent=n.in_breve!;t.append(titolo,breve);t.hidden=false;const r=t.getBoundingClientRect();t.style.left=Math.min(innerWidth-r.width-12,e.clientX+16)+'px';t.style.top=Math.min(innerHeight-r.height-12,e.clientY+16)+'px';},300);
       });
-      webgl.domElement.addEventListener('pointerleave',()=>{clearTimeout(timer);document.getElementById('tooltip').hidden=true;});
+      webgl.domElement.addEventListener('pointerleave',()=>{clearTimeout(timer);document.getElementById('tooltip')!.hidden=true;});
       webgl.domElement.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();if(e.shiftKey)modello.entra();else modello.seleziona(modello.stato.selezione);}});
-      webgl.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();document.getElementById('view-2d').focus();});
+      webgl.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();document.getElementById('view-2d')!.focus();});
     }
   };
 
-  const costruisci = {};
+  const costruisci: Record<string, () => void> = {};
   // Le scene usano quote illustrative; non rappresentano profondità fisiche del silicio.
 
   costruisci.board = () => {
     box('board',20,20,960,720,13,'scheda',-13);
-    for(const [x,z] of [[44,44],[956,44],[44,716],[956,716]]){
+    for(const [x,z] of [[44,44],[956,44],[44,716],[956,716]] as const){
       cilindro('board',x,z,12,2,'metallo');cilindro('board',x,z,6,3,'chip',1);
     }
     for(let i=0;i<8;i++)filo(null,[[80,270+i*12,1],[220+i*15,270+i*12,1],[220+i*15,310+i*12,1],[430,310+i*12,1]],'pista',.6);
@@ -280,7 +321,7 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
     for(let i=0;i<3;i++)box('board.jp1',562+i*15,131,6,14,22,'metallo',2);
     box('board.jp1',558,128,29,22,16,'chip',12);etichetta('board.jp1','JP1',580,112,40);
     box('board.usb_sd',160,30,70,40,34,'metallo',2);box('board.usb_sd',168,22,52,15,36,'chip',2);etichetta('board.usb_sd','USB · microSD',195,70,40);
-    for(const [x,z] of [[950,220],[950,360],[20,300],[20,440]]){
+    for(const [x,z] of [[950,220],[950,360],[20,300],[20,440]] as const){
       box('board.pmod',x,z,30,100,25,'chip',2);
       for(let r=0;r<6;r++)for(let c=0;c<2;c++)cilindro('board.pmod',x+8+c*14,z+12+r*15,2,1,'metallo',28);
     }
@@ -289,9 +330,9 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
       box('board.altri',300+i*120,30,110,50,35,'metallo',2);box('board.altri',308+i*120,25,94,16,29,'chip',6);etichetta('board.altri',t,355+i*120,55,45);
     }
     Object.keys(dati.nodi['board.switch'].pin).forEach((nome,i)=>{
-      const x=140+i*45,pin=dati.nodi['board.switch'].pin[nome];box('board.switch',x,660,36,56,12,'metallo',2).userData.pin=pin;box('board.switch',x+11,668,14,25,12,'chip',14).userData.pin=pin;
+      const x=140+i*45,pin=dati.nodi['board.switch'].pin[nome as keyof typeof dati.nodi['board.switch']['pin']];box('board.switch',x,660,36,56,12,'metallo',2).userData.pin=pin;box('board.switch',x+11,668,14,25,12,'chip',14).userData.pin=pin;
     });etichetta('board.switch',dati.nodi['board.switch'].titolo,500,718,35,true);
-    Object.keys(dati.nodi['board.led'].pin).forEach((nome,i)=>cilindro('board.led',158+i*45,625,7,8,'memoria',2).userData.pin=dati.nodi['board.led'].pin[nome]);
+    Object.keys(dati.nodi['board.led'].pin).forEach((nome,i)=>cilindro('board.led',158+i*45,625,7,8,'memoria',2).userData.pin=dati.nodi['board.led'].pin[nome as keyof typeof dati.nodi['board.led']['pin']]);
     etichetta('board.led',dati.nodi['board.led'].titolo,500,607,26);
     for(const [i,x] of [760,800].entries()){
       cilindro('board.rgb',x,520,10,10,'io',2);etichetta('board.rgb','LD'+(16+i),x,548,24);
@@ -299,11 +340,11 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
     box('board.display',160,520,420,80,16,'chip',2);
     for(let i=0;i<8;i++){
       const x=172+i*51;
-      for(const [dx,dz,w,h] of [[5,8,25,5],[30,14,5,23],[30,42,5,23],[5,65,25,5],[0,42,5,23],[0,14,5,23],[5,36,25,5]])box('board.display',x+dx,520+dz,w,h,2,'inattivo',18).userData.boardDigit=i;
+      for(const [dx,dz,w,h] of [[5,8,25,5],[30,14,5,23],[30,42,5,23],[5,65,25,5],[0,42,5,23],[0,14,5,23],[5,36,25,5]] as const)box('board.display',x+dx,520+dz,w,h,2,'inattivo',18).userData.boardDigit=i;
       cilindro('board.display',x+42,588,3,2,'inattivo',18).userData.boardDigit=i;
     }
     etichetta('board.display',dati.nodi['board.display'].titolo,370,510,34);
-    for(const [x,z,nome] of [[840,420,'BTNC'],[840,375,'BTNU'],[795,420,'BTNL'],[885,420,'BTNR'],[840,465,'BTND']]){
+    for(const [x,z,nome] of [[840,420,'BTNC'],[840,375,'BTNU'],[795,420,'BTNL'],[885,420,'BTNR'],[840,465,'BTND']] as const){
       box('board.button',x-16,z-16,32,32,12,'chip',2);cilindro('board.button',x,z,11,8,'metallo',14);
     }
     box('board.button',700,230,30,30,15,'errore',2);etichetta('board.button','CPU RESET',745,230,35);etichetta('board.button',dati.nodi['board.button'].titolo,840,478,30);
@@ -312,7 +353,7 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
   costruisci.chip = () => {
     box('chip',60,60,880,880,18,'chip',-18);box('chip',100,100,800,800,8,'superficie');
     for(let i=0;i<30;i++){
-      const v=80+i*29;for(const [x,z] of [[v,68],[v,932],[68,v],[932,v]])cilindro('chip.pin',x,z,4,4,'metallo',1);
+      const v=80+i*29;for(const [x,z] of [[v,68],[v,932],[68,v],[932,v]] as const)cilindro('chip.pin',x,z,4,4,'metallo',1);
     }
     etichetta('chip.pin','Pin',500,955,20);
     for(const x of [100,860])for(let i=0;i<3;i++){
@@ -362,7 +403,7 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
 
   costruisci.clb = () => {
     box('clb',380,180,380,380,8,'superficie',-8);cornice('clb',380,180,380,380,2);
-    const vicino=(x,z,nx,ny,ampio=false)=>{
+    const vicino=(x: number,z: number,nx: number,ny: number,ampio=false)=>{
       const w=ampio?380:185,a=ampio?40:20,b=ampio?200:100,sw=ampio?140:65;
       box(null,x,z,w,150,6,'slicel',-8,.2);cornice(null,x,z,w,150,1,'testo-2',.35);
       box(null,x+a,z+82,sw,50,20,'slicem',0,.35);box(null,x+b,z+20,sw,50,20,'slicel',0,.35);
@@ -375,11 +416,11 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
     for(let r=0;r<4;r++)for(let c=0;c<3;c++)box('clb.switch',215+c*28,270+r*48,12,12,3,'superficie',32);
     etichetta('clb.switch','switch matrix',260,355,48,true);
     box('clb.slice0',420,400,140,120,42,'slicem');box('clb.slice1',580,220,140,120,42,'slicel');
-    for(const [id,x,z] of [['clb.slice0',420,400],['clb.slice1',580,220]])for(let r=0;r<2;r++)for(let c=0;c<2;c++)box(id,x+18+c*58,z+18+r*49,45,35,6,'slicel',42);
+    for(const [id,x,z] of [['clb.slice0',420,400],['clb.slice1',580,220]] as const)for(let r=0;r<2;r++)for(let c=0;c<2;c++)box(id,x+18+c*58,z+18+r*49,45,35,6,'slicel',42);
     etichetta('clb.slice0',dati.nodi['clb.slice0'].titolo,490,460,63,true);etichetta('clb.slice1',dati.nodi['clb.slice1'].titolo,650,280,63,true);
     filo('clb.switch',[[320,455,19],[420,455,19]],'testo-2',2);
     filo('clb.switch',[[320,280,19],[360,280,19],[580,280,19]],'testo-2',2);
-    for(const [x,alto,basso,meta] of [[490,400,520,144],[650,220,340,82]]){
+    for(const [x,alto,basso,meta] of [[490,400,520,144],[650,220,340,82]] as const){
       filo('clb.carry',[[x,basso+70,20],[x,basso,20]],'clock',3);
       filo('clb.carry',[[x,alto,20],[x,meta,20]],'clock',3);
       trapezio('clb.carry',x-6,meta,12,14,5,'clock',20);
@@ -396,17 +437,17 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
       const z=80+i*200;ingressoLut('slice.lut',120,z,160,130,c,memoria?'slicem':'slicel').userData.wideQuarter=3-i;
       etichetta('slice.lut','A1–A6',66,z+65,12);etichetta('slice.lut','O6',305,z+30,26);etichetta('slice.lut','O5',305,z+100,26);
       if(memoria){filo('slice.lut',[[145,z+130,12],[145,z+163,12]],'memoria',2);filo('slice.lut',[[235,z+130,12],[235,z+163,12]],'memoria',2);etichetta('slice.lut','DI · WE',190,z+160,28);}
-      for(const [x,nome] of [[720,'FF/Latch'],[820,'FF']]){
+      for(const [x,nome] of [[720,'FF/Latch'],[820,'FF']] as const){
         box('slice.ff',x,z+40,70,50,32,'slicel').userData.fixedFF=x===820;box('slice.ff',x+5,z+45,60,40,3,'slicem',32).userData.fixedFF=x===820;etichetta('slice.ff',nome,x+35,z+65,48,true);
         if(x===820)etichetta('slice.ff','non utilizzabile',1010,z+65,48,true).dataset.unavailable='true';
       }
       filo('slice.ff',[[650,z+65,17],[720,z+65,17]],'testo-2',1.5);filo('slice.ff',[[790,z+65,17],[820,z+65,17]],'testo-2',1.5);filo('slice.ff',[[890,z+65,17],[940,z+65,17]],'testo-2',1.5);
     }
     if(memoria){etichetta('slice.lut','RAM distribuita',435,100,45);etichetta('slice.lut','Shift register',435,130,45);}
-    for(const [x,z,nome] of [[340,230,'F7BMUX'],[340,630,'F7AMUX'],[450,430,'F8MUX']]){
+    for(const [x,z,nome] of [[340,230,'F7BMUX'],[340,630,'F7AMUX'],[450,430,'F8MUX']] as const){
       trapezio('slice.mux',x,z-35,45,70,24,'slicel').userData.wideMux=nome;etichetta('slice.mux',nome,x+22,z+60,40,true);
     }
-    for(const [z,fine] of [[115,210],[315,250],[515,610],[715,650]])filo('slice.mux',[[310,z,12],[328,z,12],[328,fine,12],[340,fine,12]],'testo-2',1.5);
+    for(const [z,fine] of [[115,210],[315,250],[515,610],[715,650]] as const)filo('slice.mux',[[310,z,12],[328,z,12],[328,fine,12],[340,fine,12]],'testo-2',1.5);
     filo('slice.mux',[[385,230,12],[410,230,12],[410,410,12],[450,410,12]],'testo-2',1.5);
     filo('slice.mux',[[385,630,12],[410,630,12],[410,450,12],[450,450,12]],'testo-2',1.5);
     box('slice.carry',560,80,80,730,8,'superficie');
@@ -451,12 +492,12 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
     }
   };
 
-  function laterale(id) {
+  function laterale(id: string) {
     pedana(1160,620);
     if(id==='bram'){
       box(id,330,145,360,440,45,'memoria');
       for(let r=0;r<16;r++){box(id,345,160+r*25,330,23,7,'superficie',45).userData.bramAddress=r;etichetta(id,r+' · 00000000',510,172+r*25,58).dataset.bramWord=String(r);}
-      for(const [x,nome] of [[150,'Porta A'],[840,'Porta B']]){
+      for(const [x,nome] of [[150,'Porta A'],[840,'Porta B']] as const){
         box(id,x-60,300,120,110,28,'io');etichetta(id,nome,x,355,45,true);
         etichetta(id,'Q · 0',x,485,45,true).dataset.bramOutput=x<500?'0':'1';
         filo(id,[[x<500?210:780,355,15],[x<500?330:690,355,15]],'testo-2',2);
@@ -472,7 +513,7 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
       filo(id,[[550,170,40],[550,248,40]],'clock',2);etichetta(id,'EN',550,145,70);
       filo(id,[[610,282,40],[900,282,40]],'z',2).forEach(m=>m.userData.tristateOutput=true);etichetta(id,'Y',950,250,55,true);etichetta(id,'Z',950,300,55,true).dataset.tristateSignal='y';
       etichetta(id,'Pin bidirezionale',600,425,55,true);
-      for(const [x,label,key] of [[220,'FPGA','fpga'],[800,'I/O','external']]){box(id,x,500,180,100,28,'io');etichetta(id,label,x+90,525,65,true);etichetta(id,'Z',x+90,565,65,true).dataset.tristateSignal=key;}
+      for(const [x,label,key] of [[220,'FPGA','fpga'],[800,'I/O','external']] as const){box(id,x,500,180,100,28,'io');etichetta(id,label,x+90,525,65,true);etichetta(id,'Z',x+90,565,65,true).dataset.tristateSignal=key;}
       filo(id,[[400,550,40],[800,550,40]],'z',2).forEach(m=>m.userData.tristatePin=true);etichetta(id,'Z',600,520,60,true).dataset.tristateSignal='wire';
     }else if(id==='cmt'){
       box(id,120,210,260,320,22,'cmt');box(id,160,285,180,70,26,'slicel',22);box(id,160,405,180,70,26,'slicem',22);
@@ -487,13 +528,13 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }) {
         box(id,x-35,z+70,30,30,18,'gt').userData.routingMatrix=i;filo(id,[[x-20,z+85,8],[x,z+35,8]],'testo-2',1.5);
         if(c<3)filo(id,[[x-20,z+85,8],[x+200,z+85,8]],'clock',2);if(r<3)filo(id,[[x-20,z+85,8],[x-20,z+205,8]],'clock',2);
         for(let index=0;index<3;index++)for(const b of [...(c<3?[i+1]:[]),...(r<3?[i+4]:[])]){
-          const coord=n=>[160+n%4*220+index*3,255+Math.floor(n/4)*120+index*3,16+index*3];
+          const coord=(n: number): Point3=>[160+n%4*220+index*3,255+Math.floor(n/4)*120+index*3,16+index*3];
           filo(id,[coord(i),coord(b)],['accento','attivo','clock'][index],2.3).forEach(m=>{m.userData.routingEdge={a:i,b,index};m.visible=false;});
         }
       }
     }else if(id==='configurazione'){
       box(id,300,180,500,380,26,'chip');etichetta(id,'ARTIX-7',550,365,52,true);
-      const celle=[[330,210],[480,210],[630,210],[750,270],[750,490],[600,530],[450,530],[330,480]];
+      const celle: [number, number][]=[[330,210],[480,210],[630,210],[750,270],[750,490],[600,530],[450,530],[330,480]];
       celle.forEach(([x,z],i)=>{box(id,x-18,z-18,36,36,18,'slicel',26).userData.jtagCell=i;etichetta(id,'',x,z,50,true).dataset.jtagBit=String(i);if(i)filo(id,[[...celle[i-1],37],[x,z,37]],'clock',2).forEach(m=>m.userData.jtagChain=true);filo(id,[[x,z,37],[x+(550-x)*.28,z+(365-z)*.28,37]],'accento',2).forEach(m=>m.userData.jtagNormal=true);});
       filo(id,[[120,210,36],[312,210,36]],'clock',2);etichetta(id,'TDI',105,185,50,true);
       filo(id,[[312,480,36],[120,480,36]],'clock',2);etichetta(id,'TDO',100,510,50,true);

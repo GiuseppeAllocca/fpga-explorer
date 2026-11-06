@@ -10,7 +10,7 @@ import './styles/chip-simulations.css';
 import {creaSimulazioni} from './simulations/panel.ts';
 
 // Three.js si carica solo nella pagina 3D.
-const creaRenderer3d = document.documentElement.dataset.view === '3d' ? (await import('./three/renderer3d.js')).creaRenderer3d : null;
+const creaRenderer3d = document.documentElement.dataset.view === '3d' ? (await import('./three/renderer3d.ts')).creaRenderer3d : null;
 
 const VISTA_3D = document.documentElement.dataset.view === '3d';
 const riduciMovimento = matchMedia('(prefers-reduced-motion: reduce)');
