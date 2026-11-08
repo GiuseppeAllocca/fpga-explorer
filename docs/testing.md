@@ -47,7 +47,7 @@ The results in this section predate the slice follow-up below.
 ## 3D readability follow-up (2026-11-08)
 
 - The slice adds four output-pin bands; its existing six routes and LUT output stubs share their connection coordinates. Active route colours are read back from the rendered mesh materials for validation, rather than inferred from frame callbacks.
-- Forty MUX states across both themes, variants and viewport sizes pass output/parity and route-colour checks. Small-MUX transitions and reset clear the corresponding highlights.
+- Forty MUX states across both themes, variants and viewport sizes pass output/parity and route-colour checks. Small-MUX transitions clear the route highlights; reset restores the default wide-MUX route and outputs.
 - In the same three-step zoom sequence over all thirteen roots at 1280×800 and 360×800, clipped visible labels decrease from 11 to 0, with no label overlaps. Edge adjustment is limited to 24 CSS px and keeps the existing collision priorities and camera controls.
 - Initial scene checks across those 26 combinations preserve all scene-node lists and panel markup. Mesh counts are unchanged outside the slice and increase by exactly four in each slice variant.
 - Mouse mesh selection, keyboard selection, orbit, keyboard pan and Fit pass targeted production checks; Fit restores the original label positions. Switching 3D → 2D → 3D preserves node, variant, LUT mode, return context and theme.
