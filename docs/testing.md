@@ -48,7 +48,7 @@ The results in this section predate the slice follow-up below.
 
 Unchecked items remain unverified and are not acceptance claims.
 
-- [ ] Add a negative check demonstrating rejection of a prohibited term in a TypeScript source. TypeScript scanning is already implemented.
+- [x] Add a negative check demonstrating rejection of a prohibited term in a TypeScript source. The same predicate used by the real scan rejects injected prohibited contents for a TypeScript path found by the repository walker, and accepts clean contents. No fixture files are written. All 73 tests pass; the prohibited-term pattern, file extensions and exclusions are unchanged.
 - [x] Run a representative production UI regression for all twelve simulations in both views, with reset, playback completion and invalid-input cases as detailed above. Exhaustive interaction coverage remains outside this check.
 - [ ] Test a physical tablet: Chrome and Samsung Internet, both orientations, touch, pinch, pan, double tap, stylus; measure frame rate during pan and zoom.
 - [ ] Repeat the full axe audit (both themes, narrow viewport), check contrast manually, and test screen readers and voice control.

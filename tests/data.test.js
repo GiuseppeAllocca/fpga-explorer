@@ -51,10 +51,17 @@ describe('nessun dato personale', () => {
     return statSync(p).isDirectory() ? file(p) : [p];
   });
 
+  const passesPrivacyGuard = (path, readText = readFileSync) =>
+    !/\.(js|ts|json|html|css|md|yml|yaml|txt)$|LICENSE/.test(path) || !vietati.test(readText(path, 'utf8'));
+
   it('nessun file contiene termini vietati', () => {
-    for (const p of file(radice)) {
-      if (!/\.(js|ts|json|html|css|md|yml|yaml|txt)$|LICENSE/.test(p)) continue;
-      expect(readFileSync(p, 'utf8'), p).not.toMatch(vietati);
-    }
+    for (const p of file(radice)) expect(passesPrivacyGuard(p), p).toBe(true);
+  });
+
+  it('rifiuta un termine vietato in un sorgente TypeScript', () => {
+    const source = file(radice).find(path => path.endsWith('.ts'));
+    expect(source).toBeDefined();
+    expect(passesPrivacyGuard(source, () => 'export const marker = "vault";')).toBe(false);
+    expect(passesPrivacyGuard(source, () => 'export const clock = 1;')).toBe(true);
   });
 });

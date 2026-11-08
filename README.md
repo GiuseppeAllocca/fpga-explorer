@@ -32,7 +32,7 @@ The tests cover all 64 input combinations of the LUT, the 256 addresses of the m
 
 ## Quality
 
-72 automated tests, strict CSP, axe-core audit and manual browser checks. What was verified and what is still open
+73 automated tests, strict CSP, axe-core audit and manual browser checks. What was verified and what is still open
 (touch devices, assistive technologies, performance on a tablet) is listed in [docs/testing.md](docs/testing.md).
 
 ## Stack
