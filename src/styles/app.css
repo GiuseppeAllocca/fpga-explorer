@@ -55,6 +55,7 @@
 .three-labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .three-label{position:absolute;transform:translate(-50%,-50%);font-size:12px;line-height:1.35;max-width:160px;text-align:center;padding:3px 6px;border-radius:4px;background:var(--superficie);color:var(--testo);border:1px solid var(--bordo);box-shadow:0 2px 8px #00000012}
 .three-label.selected{border-color:var(--accento);font-weight:600}
+.three-label.three-resource-label{font-weight:600}
 .three-nodes{position:absolute;left:16px;right:16px;bottom:72px;display:flex;gap:6px;overflow:auto;padding:4px 0 8px;scrollbar-width:thin}
 .three-nodes button{flex:none;max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:12px;min-height:44px}
 .breadcrumb>button,.breadcrumb>span{flex:none}

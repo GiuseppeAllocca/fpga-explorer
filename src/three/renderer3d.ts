@@ -12,6 +12,7 @@ interface MeshMetadata {
   carryStage?: number;
   wideQuarter?: number;
   wideMux?: string;
+  sliceRoute?: string;
   bramAddress?: number;
   switchIndex?: number;
   routingMatrix?: number;
@@ -134,11 +135,13 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }: {dati: Dat
     return e;
   }
   function pedana(w=larghezza-40,h=altezza-80) { box(radice,20,65,w,h,10,'superficie',-12); }
-  function ingressoLut(id: string, x: number, z: number, w: number, h: number, lettera: string, token='slicel', quota=0) {
-    const m=box(id,x,z,w,h,25,token,quota);etichetta(id,'LUT '+lettera,x+w/2,z+h/2,quota+31,true);
+  function ingressoLut(id: string, x: number, z: number, w: number, h: number, lettera: string, routeId: string, token='slicel', quota=0) {
+    const m=box(id,x,z,w,h,25,token,quota);
+    box(id,x+w-38,z,38,h,1,'bianco',quota+25,.24);
+    etichetta(id,'LUT '+lettera,x+(w-38)/2,z+h/2,quota+31,true).classList.add('three-resource-label');
     for(let j=0;j<6;j++)filo(id,[[x-22,z+12+j*(h-24)/5,quota+9],[x,z+12+j*(h-24)/5,quota+9]],'metallo',1.2);
-    filo(id,[[x+w,z+h*.27,quota+9],[x+w+30,z+h*.27,quota+9]],'testo-2',1.5);
-    filo(id,[[x+w,z+h*.75,quota+9],[x+w+30,z+h*.75,quota+9]],'testo-2',1.5);
+    filo(id,[[x+w,z+35,quota+12],[x+w+30,z+35,quota+12]],'testo-2',1.5).forEach(mesh=>mesh.userData.sliceRoute=routeId);
+    filo(id,[[x+w,z+95,quota+12],[x+w+30,z+95,quota+12]],'testo-2',1.5);
     return m;
   }
 
@@ -161,12 +164,13 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }: {dati: Dat
       const x=(p.x+1)*w/2,y=(1-p.y)*h/2;
       if(t.testoMisurato!==e.textContent||!t.largo||!t.alto){e.hidden=false;t.largo=e.offsetWidth;t.alto=e.offsetHeight;t.testoMisurato=e.textContent;}
       const largo=t.largo!,alto=t.alto!;
-      const r={x:x-largo/2,y:y-alto/2,w:largo,h:alto};
-      const dentro=p.z<1&&p.z>-1&&x>8&&x<w-8&&y>8&&y<h-8;
+      const placedX=THREE.MathUtils.clamp(x,largo/2+8,w-largo/2-8),placedY=THREE.MathUtils.clamp(y,alto/2+8,h-alto/2-8);
+      const r={x:placedX-largo/2,y:placedY-alto/2,w:largo,h:alto};
+      const dentro=p.z<1&&p.z>-1&&x>8&&x<w-8&&y>8&&y<h-8&&Math.abs(placedX-x)<=24&&Math.abs(placedY-y)<=24;
       const sovrapposta=occupati.some(a=>r.x<a.x+a.w+4&&r.x+r.w+4>a.x&&r.y<a.y+a.h+3&&r.y+r.h+3>a.y);
       const visibile=dentro&&!sovrapposta;
       e.hidden=!visibile;
-      if(visibile){e.style.left=x+'px';e.style.top=y+'px';occupati.push(r);}
+      if(visibile){e.style.left=placedX+'px';e.style.top=placedY+'px';occupati.push(r);}
     }
   }
   function disegna() {
@@ -223,6 +227,8 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }: {dati: Dat
     aggiornaSimulazione(s) {
       if(!gruppo)return;statoSimulazione=s;
       const memory=s.id==='sim_lut'||s.id==='sim_distram'||s.id==='sim_srl',wide=s.id==='sim_widemux'&&!s.small;
+      const selectedRoutes=wide?[s.inputs[6]?'b-f7a':'a-f7a',s.inputs[6]?'d-f7b':'c-f7b',s.inputs[7]?'f7b-f8':'f7a-f8']:[];
+      const highlightedRoutes=new Set<string>(),routeColor=wide?new THREE.Color(colore('attivo')):null;
       const bram=s.id==='sim_bram',config=s.id==='sim_jtag'?s:s.configuration,routes=s.id==='sim_switch'?s.routes:[];
       const matrices=new Set(routes.flat());
       gruppo.traverse(object=>{
@@ -234,7 +240,7 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }: {dati: Dat
         if(Number.isInteger(d.boardDigit)&&s.board?.digit===d.boardDigit)token='attivo';
         if(d.pin&&s.board?.pin===d.pin)token='accento';
         if(Number.isInteger(d.carryStage)&&s.id==='sim_carry'&&s.step>0&&(s.step-1)%4===d.carryStage)token='accento';
-        if(wide&&(d.wideQuarter===s.quarter||['F7AMUX','F7BMUX','F8MUX'].includes(d.wideMux!)))token='accento';
+        if(wide&&((d.wideQuarter!==undefined&&d.wideQuarter%2===s.inputs[6])||d.wideMux!==undefined||selectedRoutes.includes(d.sliceRoute!)))token='attivo';
         if(Number.isInteger(d.bramAddress)&&bram)token=s.cells[d.bramAddress!]==='?'?'errore':s.ports.some(p=>p.address===d.bramAddress)?'accento':null;
         if(Number.isInteger(d.switchIndex)&&s.id==='sim_switch'&&s.source===d.switchIndex)token='accento';
         if(Number.isInteger(d.routingMatrix)&&matrices.has(d.routingMatrix!))token='accento';
@@ -249,6 +255,7 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }: {dati: Dat
         if(d.tristatePin)token=s.id==='sim_tristate'?(s.wire==='X'?'errore':s.wire==='Z'?'testo-2':'accento'):'testo-2';
         if(token){if(!d.originalColor){d.originalColor=m.material.color.clone();m.material=m.material.clone();decorazioni.push(m.material);}m.material.color.set(colore(token));}
         else if(d.originalColor)m.material.color.copy(d.originalColor);
+        if(d.sliceRoute&&routeColor&&m.material.color.equals(routeColor))highlightedRoutes.add(d.sliceRoute);
       });
       testi.forEach(t=>{
         const d=t.elemento.dataset,a=d.cellAddress;
@@ -260,6 +267,7 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }: {dati: Dat
         if(d.tristateSignal!==undefined){t.elemento.textContent=s.id==='sim_tristate'?String(s[d.tristateSignal as 'y' | 'wire' | 'fpga' | 'external']):'Z';d.simRead=String(s.id==='sim_tristate');}
         if(d.flowStep!==undefined)d.simRead=String(s.id==='sim_flow'&&s.step===Number(d.flowStep));
       });
+      webgl.domElement.dataset.activeRoutes=JSON.stringify([...highlightedRoutes].sort());
       webgl.domElement.dataset.sim=s.id||'';webgl.domElement.dataset.simOutput=String(('o6' in s?s.o6:undefined)??('output' in s?s.output:undefined)??('wire' in s?s.wire:undefined)??'');
       webgl.domElement.dataset.configDone=String(!!config?.done);webgl.domElement.dataset.routes=String(routes.length);webgl.domElement.dataset.flowStep=String(s.id==='sim_flow'?s.step:'');
       richiediDisegno();
@@ -432,24 +440,24 @@ export function creaRenderer3d({ dati, modello, mount, navigazione }: {dati: Dat
 
   costruisci.slice = () => {
     pedana(1120,750);
-    const memoria=modello.stato.variante==='SLICEM';
+    const memoria=modello.stato.variante==='SLICEM',routeIds=['d-f7b','c-f7b','b-f7a','a-f7a'];
     for(const [i,c] of ['D','C','B','A'].entries()){
-      const z=80+i*200;ingressoLut('slice.lut',120,z,160,130,c,memoria?'slicem':'slicel').userData.wideQuarter=3-i;
-      etichetta('slice.lut','A1–A6',66,z+65,12);etichetta('slice.lut','O6',305,z+30,26);etichetta('slice.lut','O5',305,z+100,26);
+      const z=80+i*200;ingressoLut('slice.lut',120,z,160,130,c,routeIds[i],memoria?'slicem':'slicel').userData.wideQuarter=3-i;
+      etichetta('slice.lut','A1–A6',66,z+65,12);etichetta('slice.lut','O6',261,z+35,32);etichetta('slice.lut','O5',261,z+95,32);
       if(memoria){filo('slice.lut',[[145,z+130,12],[145,z+163,12]],'memoria',2);filo('slice.lut',[[235,z+130,12],[235,z+163,12]],'memoria',2);etichetta('slice.lut','DI · WE',190,z+160,28);}
       for(const [x,nome] of [[720,'FF/Latch'],[820,'FF']] as const){
-        box('slice.ff',x,z+40,70,50,32,'slicel').userData.fixedFF=x===820;box('slice.ff',x+5,z+45,60,40,3,'slicem',32).userData.fixedFF=x===820;etichetta('slice.ff',nome,x+35,z+65,48,true);
+        box('slice.ff',x,z+40,70,50,32,'slicel').userData.fixedFF=x===820;box('slice.ff',x+5,z+45,60,40,3,'slicem',32).userData.fixedFF=x===820;etichetta('slice.ff',nome,x+35,z+65,48,true).classList.add('three-resource-label');
         if(x===820)etichetta('slice.ff','non utilizzabile',1010,z+65,48,true).dataset.unavailable='true';
       }
       filo('slice.ff',[[650,z+65,17],[720,z+65,17]],'testo-2',1.5);filo('slice.ff',[[790,z+65,17],[820,z+65,17]],'testo-2',1.5);filo('slice.ff',[[890,z+65,17],[940,z+65,17]],'testo-2',1.5);
     }
     if(memoria){etichetta('slice.lut','RAM distribuita',435,100,45);etichetta('slice.lut','Shift register',435,130,45);}
     for(const [x,z,nome] of [[340,230,'F7BMUX'],[340,630,'F7AMUX'],[450,430,'F8MUX']] as const){
-      trapezio('slice.mux',x,z-35,45,70,24,'slicel').userData.wideMux=nome;etichetta('slice.mux',nome,x+22,z+60,40,true);
+      trapezio('slice.mux',x,z-35,45,70,24,'slicel').userData.wideMux=nome;etichetta('slice.mux',nome,x+22,z+60,40,true).classList.add('three-resource-label');
     }
-    for(const [z,fine] of [[115,210],[315,250],[515,610],[715,650]] as const)filo('slice.mux',[[310,z,12],[328,z,12],[328,fine,12],[340,fine,12]],'testo-2',1.5);
-    filo('slice.mux',[[385,230,12],[410,230,12],[410,410,12],[450,410,12]],'testo-2',1.5);
-    filo('slice.mux',[[385,630,12],[410,630,12],[410,450,12],[450,450,12]],'testo-2',1.5);
+    for(const [i,[z,fine]] of ([[115,210],[315,250],[515,610],[715,650]] as const).entries())filo('slice.mux',[[310,z,12],[328,z,12],[328,fine,12],[340,fine,12]],'testo-2',1.5).forEach(mesh=>mesh.userData.sliceRoute=routeIds[i]);
+    filo('slice.mux',[[385,230,12],[410,230,12],[410,410,12],[450,410,12]],'testo-2',1.5).forEach(mesh=>mesh.userData.sliceRoute='f7b-f8');
+    filo('slice.mux',[[385,630,12],[410,630,12],[410,450,12],[450,450,12]],'testo-2',1.5).forEach(mesh=>mesh.userData.sliceRoute='f7a-f8');
     box('slice.carry',560,80,80,730,8,'superficie');
     for(let i=0;i<4;i++){
       const z=110+i*200;box('slice.carry',566,z,68,48,28,'cmt',8).userData.carryStage=3-i;etichetta('slice.carry','MUXCY',600,z+24,48);
