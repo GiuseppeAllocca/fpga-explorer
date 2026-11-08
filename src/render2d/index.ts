@@ -6,6 +6,11 @@ import {$, crea, svg, pulsante} from '../ui/dom';
 
 type SliceRoute = {id: string; da: string; a: string; porta?: string; punti: number[][]};
 
+export function accessibleLabel(base: string, visible: string) {
+  const labelBase=base.replace(/\([^)]*\)/g,'').toLowerCase();
+  return visible&&!labelBase.includes(visible.toLowerCase())?`${base} · ${visible}`:base;
+}
+
 export function createRenderer2d({dati, modello, simulazioni, boardState, riduciMovimento, preciso}: {
   dati: Data;
   modello: Model;
@@ -16,11 +21,20 @@ export function createRenderer2d({dati, modello, simulazioni, boardState, riduci
 }) {
 // Renderer 2D: SVG, selezione grafica, trasformazioni e input del disegno.
 // WCAG 2.5.3 (Label in Name): il nome accessibile di un controllo grafico contiene il testo che si vede.
+const labelBases=new WeakMap<SVGGElement,string>();
 function nomeConTesto(g: SVGGElement, base: string) {
-  const visibile = [...g.querySelectorAll<SVGElement>('text')].filter(t => !t.closest('[aria-hidden="true"]')).map(t => t.textContent!.trim()).filter(Boolean).join(' ');
-  // axe excludes parenthetical text when matching visible labels.
-  const label=g.closest('.slice-diagram') ? `${base} · ${visibile}` : `${base} (${visibile})`;
-  g.setAttribute('aria-label', visibile && !base.toLowerCase().includes(visibile.toLowerCase()) ? label : base);
+  labelBases.set(g,base);
+  const texts=[...g.querySelectorAll<SVGElement>('text')];
+  texts.forEach(text=>{if(text.textContent?.trim()&&!text.textContent.endsWith(' '))text.append(' ');});
+  const viewport=$('drawing').getBoundingClientRect();
+  const visibile=texts.filter(text=>{
+    if(text.closest('[aria-hidden="true"]')||getComputedStyle(text).visibility==='hidden')return false;
+    const r=text.getBoundingClientRect();
+    return Math.min(r.right,viewport.right)-Math.max(r.left,viewport.left)>=1&&Math.min(r.bottom,viewport.bottom)-Math.max(r.top,viewport.top)>=1;
+  }).map(text=>text.textContent!.trim()).filter(Boolean).join(' ');
+  // Parenthetical-only additions are excluded by accessible-name matching tools.
+  const label=accessibleLabel(base,visibile);
+  if(g.getAttribute('aria-label')!==label)g.setAttribute('aria-label',label);
 }
 
 class SvgRenderer {
@@ -35,6 +49,7 @@ class SvgRenderer {
   rapportoTesto = 0;
   inTransizione = false;
   fotogramma = 0;
+  nameTimer = 0;
   invitoMostrato = false;
   parti = new Map<string, SVGGElement>();
   retiSlice: SliceRoute[] | null = null;
@@ -340,6 +355,7 @@ class SvgRenderer {
   testoMultiriga(g: SVGElement, testo: string, x: number, y: number, limite: number, dimensione: number){const parole=testo.split(' '),righe=[''];parole.forEach(p=>{if((righe[righe.length-1]+' '+p).trim().length>limite&&righe[righe.length-1])righe.push(p);else righe[righe.length-1]=(righe[righe.length-1]+' '+p).trim();});righe.forEach((r,i)=>this.testo(g,r,x,y+i*(dimensione+8),dimensione));}
   aggiornaSimulazione(s: SceneSnapshot) {
     if(!this.gruppo)return;
+    this.scheduleAccessibleNames();
     const memory=s.id==='sim_lut'||s.id==='sim_distram'||s.id==='sim_srl';
     this.gruppo.querySelectorAll<SVGElement>('[data-sram-address]').forEach(e=>{
       const a=Number(e.getAttribute('data-sram-address')),v=memory?s.cells[a]:undefined;
@@ -420,6 +436,19 @@ class SvgRenderer {
     });
     }
     this.gruppo.setAttribute('transform',this.transformation());
+    this.scheduleAccessibleNames();
+  }
+  scheduleAccessibleNames() {
+    clearTimeout(this.nameTimer);
+    $('drawing').setAttribute('data-labels-ready','false');
+    // Wait for interaction to settle instead of measuring labels on every pan frame.
+    this.nameTimer=window.setTimeout(()=>{
+      this.gruppo.querySelectorAll<SVGGElement>('[data-node][role="button"]').forEach(group=>{
+        const base=labelBases.get(group);
+        if(base)nomeConTesto(group,base);
+      });
+      $('drawing').setAttribute('data-labels-ready','true');
+    },120);
   }
   transformation(v=this.vista){return `translate(${this.larghezza/2+v.x} ${this.altezza/2+v.y}) scale(${v.scala}) translate(${-this.larghezza/2} ${-this.altezza/2})`;}
   applicaVista(){

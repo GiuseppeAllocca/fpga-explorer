@@ -39,7 +39,7 @@ The results in this section predate the slice follow-up below.
 - Production HTTP checks at 1280×800 and 360×800, both themes and SLICEL/SLICEM: initial view, Fit and zoom (24 states). DOM bounds and rendered wire paths show no text overlaps or wire/text crossings in these states; all six routes still terminate at their intended symbols. Multiplexer-name clearance from the routes increases from 5.3 to 19.3 CSS px in the initial desktop view. This measures geometry, not learning speed.
 - All six route controls pass mouse, Enter, visible-focus and Escape checks across the eight viewport/theme/variant combinations. Explicit SVG hit rectangles and HTML buttons retain at least 44×44 CSS px in the measured states; individual resource surfaces are smaller in the distant overview and remain reachable through zoom, keyboard navigation and the panel.
 - Targeted MUX output/highlight checks (40 states), small-MUX transitions, FF/latch output/configuration, carry propagation, invalid carry input and reset pass across the same combinations.
-- Non-slice SVG and panel markup match the baseline for all twelve other roots at 1280×800/light. The unchanged 3D renderer also matches labels, panels, scene-node lists and mesh counts for all thirteen roots in a representative SLICEM/light run.
+- At this checkpoint, non-slice SVG and panel markup matched the baseline for all twelve other roots at 1280×800/light. Before the separate 3D follow-up, the 3D renderer also matched labels, panels, scene-node lists and mesh counts for all thirteen roots in a representative SLICEM/light run. The later accessible-name changes below intentionally change ARIA and text whitespace, while preserving the drawing.
 - A new axe-core 4.14.0 check on the initial slice/Explanation state passes with 0 violations across the eight combinations. The same tool reproduced Label in Name failures on the baseline; the slice fix separates SVG text, avoids parenthetical-only label additions and updates hidden FF/latch notes. `color-contrast` and `label-content-name-mismatch` still have incomplete results. This is not the full 96-combination audit or a manual accessibility review.
 - Build total: 793,567 → 794,947 bytes (+0.174%); deterministic gzip: 210,034 → 210,321 bytes (+0.137%). The Three.js chunk is byte-identical and retains its existing size warning. CSP is preserved; the targeted 2D runs load no 3D chunk.
 - The published baseline's [CI](https://github.com/GiuseppeAllocca/fpga-explorer/actions/runs/42268156165) and [Pages deployment](https://github.com/GiuseppeAllocca/fpga-explorer/actions/runs/42313735137) were confirmed successful. These remote results do not validate subsequent local changes.
@@ -53,14 +53,25 @@ The results in this section predate the slice follow-up below.
 - Mouse mesh selection, keyboard selection, orbit, keyboard pan and Fit pass targeted production checks; Fit restores the original label positions. Switching 3D → 2D → 3D preserves node, variant, LUT mode, return context and theme.
 - Strict typecheck, all 73 tests and production build pass. Physical touch-device behaviour and measured GPU frame rate remain unverified.
 
+## General accessible-name follow-up (2026-11-08)
+
+- SVG control names retain their base descriptions and follow the text actually visible after selection, pan, zoom and simulation updates. A 120 ms quiet period avoids measuring every label on every pan frame. Names that only appear in a parenthetical title also receive an explicit visible-text suffix.
+- All 76 automated tests pass, including the TypeScript privacy negative check and three SVG-label regressions. Strict typecheck, production build, dependency audit and whitespace checks pass.
+- A production HTTP matrix covers all twelve simulations in 2D/3D, light/dark, 1280×800/360×800, using SLICEM (96 cases). Each case performs a representative control action, runs axe-core 4.14.0, and checks that reset restores the initial simulation markup and control values. All actions change state, all resets match, and axe reports 0 violations. `color-contrast` and `label-content-name-mismatch` still have incomplete results; this is not manual accessibility certification or exhaustive input coverage.
+- All thirteen 2D roots at both viewport sizes retain identical SVG geometry attributes, visible text and DOM bounds against the visual checkpoint (26 comparisons). The board comparison uses a second entry to exclude its existing first-visit invitation animation. Only accessible names and insignificant text whitespace change in this follow-up.
+- Board-to-LUT keyboard navigation passes in both views at both viewport sizes. The broader slice route, MUX, FF/latch, carry and 3D interaction checks are detailed above.
+- Final build: 796,541 bytes (+0.375% from the original baseline), 210,862 deterministic gzip bytes (+0.394%). Main JavaScript: 141,807 bytes; 3D chunk: 617,580 bytes; CSS: 31,157 bytes. No new runtime dependency is added. The existing large-chunk warning remains visible, CSP is unchanged and none of the 48 audited 2D cases loads the 3D chunk.
+- Calculated 2D output-pin text contrast is at least 6.62:1 across the two themes and variants, including the white overlay. This is a CSS colour calculation for the changed pin lane, not a complete manual contrast review.
+
 ## Pending checks
 
 Unchecked items remain unverified and are not acceptance claims.
 
-- [x] Add a negative check demonstrating rejection of a prohibited term in a TypeScript source. The same predicate used by the real scan rejects injected prohibited contents for a TypeScript path found by the repository walker, and accepts clean contents. No fixture files are written. All 73 tests pass; the prohibited-term pattern, file extensions and exclusions are unchanged.
+- [x] Add a negative check demonstrating rejection of a prohibited term in a TypeScript source. The same predicate used by the real scan rejects injected prohibited contents for a TypeScript path found by the repository walker, and accepts clean contents. No fixture files are written. The negative check passes; the prohibited-term pattern, file extensions and exclusions are unchanged.
 - [x] Run a representative production UI regression for all twelve simulations in both views, with reset, playback completion and invalid-input cases as detailed above. Exhaustive interaction coverage remains outside this check.
 - [ ] Test a physical tablet: Chrome and Samsung Internet, both orientations, touch, pinch, pan, double tap, stylus; measure frame rate during pan and zoom.
-- [ ] Repeat the full axe audit (both themes, narrow viewport), check contrast manually, and test screen readers and voice control.
+- [x] Run the 96-case automated axe matrix on the production build across both views, themes and viewport sizes, as detailed above.
+- [ ] Resolve incomplete axe results with manual checks, review contrast across the whole application, and test screen readers and voice control.
 - [ ] Run every simulation in Safari, Chrome and Firefox on desktop.
 - [x] Confirm the published baseline's successful GitHub CI and Pages deployment, as linked above. New local changes still require separately authorized integration and a new remote run.
 

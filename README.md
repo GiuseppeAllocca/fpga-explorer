@@ -32,7 +32,7 @@ The tests cover all 64 input combinations of the LUT, the 256 addresses of the m
 
 ## Quality
 
-73 automated tests, strict CSP, axe-core audit and manual browser checks. What was verified and what is still open
+76 automated tests, strict CSP, axe-core audit and manual browser checks. What was verified and what is still open
 (touch devices, assistive technologies, performance on a tablet) is listed in [docs/testing.md](docs/testing.md).
 
 ## Stack
@@ -63,7 +63,7 @@ src/ui/                  DOM helpers and application controls
 src/simulations/        simulation models and controls shared by 2D and 3D
 src/data/                unchanged knowledge graph and checked TypeScript data types
 src/styles/              styles, themes, simulation controls
-tests/                   data integrity, privacy guard, simulations
+tests/                   data integrity, privacy guard, simulations, SVG accessible labels
 docs/testing.md          what was verified and what is still open
 ```
 
