@@ -8,6 +8,13 @@
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 /* Slice: porte fisse, corsie distinte e controlli dei percorsi separati dal disegno. */
 .drawing.slice-diagram .part.selected .visual{transform:none}
+.drawing.slice-diagram .slice-resource-name{font-weight:600}
+.drawing.slice-diagram .slice-pin-lane{opacity:.24;pointer-events:none}
+.drawing.slice-diagram .slice-pin-divider{stroke:var(--inchiostro);stroke-opacity:.3;stroke-width:1}
+.drawing.slice-diagram .slice-nameplate{stroke-width:1;vector-effect:non-scaling-stroke}
+.drawing.slice-diagram .route-related .slice-nameplate{stroke:var(--accento);stroke-width:2}
+.drawing.slice-diagram .sim-symbol .surface,.drawing.slice-diagram .sim-symbol .slice-nameplate{stroke:var(--attivo);stroke-width:2.5}
+.drawing.slice-diagram.tracing [data-symbol]:not(.route-related) .slice-nameplate{opacity:.6}
 .drawing.slice-diagram .surface,.drawing.slice-diagram .carry-frame{vector-effect:non-scaling-stroke;stroke-width:1.25}
 .drawing.slice-diagram .wire{stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
 .drawing.slice-diagram .carry-frame{fill:none;stroke:var(--bordo)}

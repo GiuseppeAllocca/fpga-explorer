@@ -18,7 +18,9 @@ export function createRenderer2d({dati, modello, simulazioni, boardState, riduci
 // WCAG 2.5.3 (Label in Name): il nome accessibile di un controllo grafico contiene il testo che si vede.
 function nomeConTesto(g: SVGGElement, base: string) {
   const visibile = [...g.querySelectorAll<SVGElement>('text')].filter(t => !t.closest('[aria-hidden="true"]')).map(t => t.textContent!.trim()).filter(Boolean).join(' ');
-  g.setAttribute('aria-label', visibile && !base.toLowerCase().includes(visibile.toLowerCase()) ? `${base} (${visibile})` : base);
+  // axe excludes parenthetical text when matching visible labels.
+  const label=g.closest('.slice-diagram') ? `${base} · ${visibile}` : `${base} (${visibile})`;
+  g.setAttribute('aria-label', visibile && !base.toLowerCase().includes(visibile.toLowerCase()) ? label : base);
 }
 
 class SvgRenderer {
@@ -160,30 +162,35 @@ class SvgRenderer {
       [rete.punti[0],rete.punti[rete.punti.length-1]].forEach(([cx,cy])=>svg('circle',{cx,cy,r:3,class:'net-port','data-net':rete.id},fili));
     });
     this.parte('slice.lut',p=>{
+      if(modello.stato.variante==='SLICEM'){this.testo(p,'RAM distribuita',430,55,16);this.testo(p,'Shift register',430,84,16);}
       ['D','C','B','A'].forEach((c,i)=>{
         const y=80+i*200,s=svg('g',{'data-symbol':'LUT '+c},p);
         this.risorsa(s,120,y,160,130,modello.stato.variante==='SLICEM'?'slicem':'slicel');
-        this.testo(s,'LUT '+c,200,y+65,22);
+        this.rettangolo(s,242,y,38,130,'var(--bianco)','none','slice-pin-lane');
+        this.filo(s,242,y,242,y+130,'slice-pin-divider');
+        this.testo(s,'LUT '+c,181,y+65,22,'slice-resource-name ink');
         for(let j=0;j<6;j++){this.filo(s,100,y+9+j*22,120,y+9+j*22);this.testo(s,'A'+(j+1),90,y+9+j*22,12,'technical','end');}
         this.filo(s,280,y+95,298,y+95);
-        this.testo(s,'O6',268,y+35,12,'technical','end');this.testo(s,'O5',268,y+95,12,'technical','end');
+        this.testo(s,'O6',268,y+35,12,'technical ink','end');this.testo(s,'O5',268,y+95,12,'technical ink','end');
         if(modello.stato.variante==='SLICEM'){
           this.filo(s,140,y+130,140,y+145);this.filo(s,240,y+130,240,y+145);
           this.testo(s,'DI',140,y+165,14,'technical');this.testo(s,'WE',240,y+165,14,'technical');
         }
       });
-      if(modello.stato.variante==='SLICEM'){this.testo(p,'RAM distribuita',430,55,16);this.testo(p,'Shift register',430,84,16);}
     });
     this.parte('slice.mux',p=>{
       ([[340,230,'F7BMUX'],[340,630,'F7AMUX'],[450,430,'F8MUX']] as const).forEach(([x,y,n])=>{
         const s=svg('g',{'data-symbol':n},p);
         svg('path',{d:`M${x} ${y-35} L${x+45} ${y-20} V${y+20} L${x} ${y+35} Z`,fill:'var(--slicel)',stroke:this.scuro('slicel'),class:'surface'},s);
-        this.testo(s,n,x+18,y+65,14,'technical');this.bersaglio(s,x,y-35,45,70);
+        this.rettangolo(s,x-27,y-82,99,34,'var(--superficie)','var(--bordo)','slice-nameplate');
+        this.testo(s,n,x+22.5,y-65,16,'technical slice-resource-name');
+        this.bersaglio(s,x-27,y-82,99,117);
       });
       this.filo(p,495,430,530,430);this.testo(p,'O',530,407,12,'technical');
     });
     this.parte('slice.carry',p=>{
       this.rettangolo(p,560,80,80,730,'var(--sfondo)','var(--testo-2)','carry-frame');
+      this.testo(p,'COUT',650,50,16,'technical');
       for(let i=0;i<4;i++){
         const y=110+i*200;
         const stage=svg('g',{'data-carry-stage':3-i},p);
@@ -194,7 +201,7 @@ class SvgRenderer {
       }
       this.percorso(p,'M600 850 H650 V758 H600','carry-wire');
       this.freccia(p,600,110,600,45,false,'carry-wire');
-      this.testo(p,'CIN',600,830,16,'technical');this.testo(p,'COUT',650,50,16,'technical');
+      this.testo(p,'CIN',600,830,16,'technical');
     });
     this.parte('slice.ff',p=>{
       for(let i=0;i<4;i++){
@@ -204,7 +211,7 @@ class SvgRenderer {
         const t=this.testo(p,'',755,y+13,12,'technical ff-wrap');
         svg('tspan',{x:755,dy:0},t).textContent='FF/';svg('tspan',{x:755,dy:'1.12em'},t).textContent='Latch';
         this.testo(fixed,'FF',855,y+25,16,'technical');
-        const note=this.testo(p,'non utilizzabile',1010,y+25,16.5,'ff-unavailable');note.style.visibility='hidden';
+        const note=this.testo(p,'non utilizzabile',1010,y+25,16.5,'ff-unavailable');note.style.visibility='hidden';note.setAttribute('aria-hidden','true');
         this.filo(p,700,y+25,720,y+25);this.filo(p,790,y+25,800,y+25);
         this.filo(p,810,y+25,820,y+25);this.filo(p,890,y+25,940,y+25);
         this.testo(p,'D',706,y-14,12,'technical');this.testo(p,'Q',925,y+4,12,'technical');
@@ -223,6 +230,8 @@ class SvgRenderer {
       [705,713,721].forEach(x=>this.filo(p,x,854,x+8,866,'bus-tick'));
       this.bersaglio(p,700,848,360,24);
     });
+    // Separate SVG text nodes for accessible-name comparison without changing their positions.
+    g.querySelectorAll('text').forEach(text=>text.append(' '));
     const nav=crea('nav',null,'slice-paths',$('stage'));nav.id='slice-paths';nav.setAttribute('aria-label','Collegati');
     this.retiSlice.forEach(rete=>{
       const nome=rete.da+(rete.porta?' · '+rete.porta:'')+' → '+rete.a;
@@ -340,12 +349,16 @@ class SvgRenderer {
     this.gruppo.querySelectorAll<SVGElement>('[data-sram-label]').forEach(e=>{const v=memory?s.cells[Number(e.getAttribute('data-sram-label'))]:undefined;e.textContent=v===undefined?'':String(v);e.classList.toggle('ink',v===1);e.style.fill='var(--testo)';});
     this.gruppo.querySelectorAll<SVGElement>('[data-lut-path]').forEach(e=>e.classList.toggle('sim-route',memory&&(e.getAttribute('data-lut-path')===(s.address>=32?'upper':'lower')||(s.split&&e.getAttribute('data-lut-path')==='lower'))));
     this.gruppo.querySelectorAll<SVGElement>('.ff-fixed').forEach(e=>e.classList.toggle('ff-disabled',s.ffLatch));
-    this.gruppo.querySelectorAll<SVGElement>('.ff-unavailable').forEach(e=>e.style.visibility=s.ffLatch?'visible':'hidden');
+    this.gruppo.querySelectorAll<SVGElement>('.ff-unavailable').forEach(e=>{e.style.visibility=s.ffLatch?'visible':'hidden';e.setAttribute('aria-hidden',String(!s.ffLatch));});
+    const storage=this.parti.get('slice.ff');
+    if(storage)nomeConTesto(storage,dati.nodi['slice.ff'].titolo);
     this.gruppo.querySelectorAll<SVGElement>('[data-carry-stage]').forEach(e=>e.classList.toggle('sim-carry-current',s.id==='sim_carry'&&s.step>0&&Number(e.getAttribute('data-carry-stage'))===(s.step-1)%4));
     const wide=s.id==='sim_widemux'&&!s.small;
     if(wide&&this.reteSelezionata)this.evidenziaRete(null);
     const selected=wide?[s.inputs[6]?'b-f7a':'a-f7a',s.inputs[6]?'d-f7b':'c-f7b',s.inputs[7]?'f7b-f8':'f7a-f8']:[];
     this.gruppo.querySelectorAll<SVGElement>('[data-net]').forEach(e=>e.classList.toggle('sim-route',selected.includes(e.getAttribute('data-net')!)));
+    const symbols=this.retiSlice?.filter(route=>selected.includes(route.id)).flatMap(route=>[route.da,route.a]) || [];
+    this.gruppo.querySelectorAll<SVGElement>('[data-symbol]').forEach(e=>e.classList.toggle('sim-symbol',symbols.includes(e.getAttribute('data-symbol')!)));
     this.gruppo.querySelectorAll<SVGElement>('[data-board-pin]').forEach(e=>e.classList.toggle('board-pin-selected',s.board?.pin===e.getAttribute('data-board-pin')));
     this.gruppo.querySelectorAll<SVGElement>('[data-board-digit]').forEach(e=>e.classList.toggle('display-active',s.board?.digit===Number(e.getAttribute('data-board-digit'))));
     const bram=s.id==='sim_bram',config=s.id==='sim_jtag'?s:s.configuration;

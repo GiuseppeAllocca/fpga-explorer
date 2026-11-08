@@ -16,6 +16,7 @@ Every level has a short explanation, the key numbers and the source each claim c
 - Same navigation model and side panel in 2D and 3D; state (selection, SLICEL/SLICEM, LUT mode, theme) is kept when switching view.
 - 3D scene built from real geometry (Three.js), selectable with raycasting, orbit/zoom/pan controls.
 - Keyboard navigation, light/dark theme, `prefers-reduced-motion`, responsive layout (side panel or bottom sheet).
+- The 2D slice separates resource names from output pins, places multiplexer labels above their symbols and traces the existing LUT/F7/F8 paths together with the simulation.
 - Every statement is linked to a source (AMD user guides, Digilent manual) or explicitly flagged as
   *not from the cited sources* / *to be verified*.
 
